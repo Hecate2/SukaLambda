@@ -1,7 +1,7 @@
 from game.map import Map
 from game.team import Team
 from game.events import *
-from skill.effect import Effect
+
 
 class Game:
     characters = []

@@ -1,5 +1,5 @@
-from skill import Skill
-from character import Character
+from SkillVM.skill import Skill
+from SkillVM.character import Character
 
 class Event:
     pass

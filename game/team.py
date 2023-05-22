@@ -1,4 +1,4 @@
-from character import Character
+from SkillVM.character import Character
 
 class Team:
     characters = set()

@@ -1,4 +1,4 @@
-from character import Character
+from SkillVM.character import Character
 from game.game import Game
 from game.exceptions import *
 from game.events import MovementHit
