@@ -1,5 +1,13 @@
-﻿namespace sukalambda
+﻿using SQLite;
+
+namespace sukalambda
 {
+    public static class CONFIG
+    {
+        public const string DATABASE_PATH = "./SukaLambda.db3";
+        public static SQLiteConnection conn = new(new SQLiteConnectionString(DATABASE_PATH));
+    }
+
     class SkillVM
     {
         class SkillExecution
