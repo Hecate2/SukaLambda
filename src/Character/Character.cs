@@ -52,11 +52,14 @@ namespace sukalambda
         [Column("level")]
         public int level { get; init; }
 
+        public int speed { get; init; }
+
         public Character(string accountId)
         {
             this.accountId = accountId;
             characterName = GetType().Name;
             level = 1;
+            speed = 1;  // TODO: compute speed
         }
         public Character(string accountId, string characterName)
         {

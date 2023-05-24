@@ -42,6 +42,12 @@ namespace sukalambda
         }
         public void AddCharacter(Character character, ushort x, ushort y, Heading heading)
         {
+            if (table.Rows.Count >= int.MaxValue)
+                throw new IndexOutOfRangeException($"Too many characters: {table.Rows.Count}");
+            if (x >= width)
+                throw new ArgumentException($"({x}, {y}); x={x} larger than the width of map {width}");
+            if (y >= height)
+                throw new ArgumentException($"({x}, {y}); y={y} larger than the height of map {height}");
             if (table.Select($"characterId='{character.accountId}'").Length > 0)
                 throw new ArgumentException($"This character {character.accountId} had been added before");
             DataRow[] row = table.Select($"positionX={x} AND positionY={y}");
