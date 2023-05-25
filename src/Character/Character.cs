@@ -2,7 +2,7 @@
 
 namespace sukalambda
 {
-    public enum CharacterName
+    public enum PreDefinedCharacterName
     {
         // ALWAYS USE STRING OF CHARACTER NAMES IN DATABASE!
         // NOT NUMERIC VALUES!
@@ -19,7 +19,7 @@ namespace sukalambda
         Grick,
         Ithea,
         Lakhesh,
-        Lillia,
+        Lilya,
         Limeskin,
         Margomedari,
         Nasania,  // non-official?
@@ -35,24 +35,40 @@ namespace sukalambda
         Willem,
     }
 
-    [Table("character")]
     public abstract class Character
     {
-        [PrimaryKey]
-        [Column("id")]
+        [Table("character")]
+        public class CharacterData
+        {
+            [PrimaryKey]
+            [Column("id")]
+            public Guid id { get; set; }
+
+            [Column("accountId")]
+            [Indexed]
+            public string accountId { get; init; }
+
+            [Column("characterName")]
+            [Indexed]
+            public string characterName { get; init; }
+
+            [Column("level")]
+            public int level { get; init; }
+        }
+
         public Guid id { get; set; }
-        
-        [Column("accountId")]
-        [Indexed]
         public string accountId { get; init; }
-
-        [Column("characterName")]
         public string characterName { get; init; }
-
-        [Column("level")]
         public int level { get; init; }
+        public List<Skill> skills { get; set; } = new();
+        public bool removedFromMap { get; private set; } = false;
 
         public int speed { get; init; }
+
+        public void GetSkills(SukaLambdaEngine vm) { }
+        public void ComputeStatus(SukaLambdaEngine vm) { }
+        public void OnAddToMap(SukaLambdaEngine vm) { }
+        public void OnRemoveFromMap(SukaLambdaEngine vm) { removedFromMap = true; }
 
         public Character(string accountId)
         {

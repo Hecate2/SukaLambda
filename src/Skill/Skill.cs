@@ -1,13 +1,29 @@
-﻿namespace sukalambda
+﻿using SQLite;
+
+namespace sukalambda
 {
     public abstract class Skill
     {
-        public Skill() { }
+        public Character owner;  // Maybe skills can be owned by one and executed from another?
+        public uint range { get; set; }
+        public Skill(Character owner) { this.owner = owner; }
+
+        [Table("skill")]
+        class SkillData
+        {
+            [PrimaryKey]
+            [Column("characterId")]
+            Guid guid { get; init; }
+            [Column("name")]
+            [Indexed]
+            string name { get; init; }
+        }
 
         /// <returns>null if the target is valid; A description for reason if the target is invalid</returns>
         public abstract string? ReasonForInvalidTarget(Character fromCharacter, Character toCharacter, SukaLambdaEngine vm);
         public abstract HashSet<Character> ValidTargets(Character fromCharacter, SukaLambdaEngine vm);
         public abstract Character[] AutoSelectTargets(Character fromCharacter, SukaLambdaEngine vm);
+        public abstract SkillExecution PlanUseSkill(Character fromCharacter, List<Character> plannedTargets, SukaLambdaEngine vm);
 
         /// <summary>
         /// Write arbitrary codes in a inherited class overriding <see cref="Execute"/>
@@ -20,9 +36,6 @@
         /// another MetaEffect at the end of this round to move the remaining shield life to the next round,
         /// and a third MetaEffect in the next round to deactivate it.
         /// </summary>
-        /// <param name="fromCharacter"></param>
-        /// <param name="target"></param>
-        /// <param name="vm"></param>
         /// <param name="metaArgs"></param>
         /// <returns>The planned numeric effects. The length can be shorter than <see cref="SkillExecution.desiredTargets"/></returns>
         public abstract List<NumericEffect> Execute(SkillExecution skillExecution, SukaLambdaEngine vm, object[] metaArgs);

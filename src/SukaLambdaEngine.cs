@@ -3,7 +3,7 @@ using System.Collections.Concurrent;
 
 namespace sukalambda
 {
-    public static class CONFIG
+    public static class PRODUCTION_CONFIG
     {
         public const string DATABASE_PATH = "./SukaLambda.db3";
         public static SQLiteConnection conn = new(new SQLiteConnectionString(DATABASE_PATH));
@@ -38,18 +38,44 @@ namespace sukalambda
         public class Round : List<SkillExecution> { }
         public uint currentRoundPointer { get; private set; } = 0;
 
-        public readonly Round[] rounds = new Round[CONFIG.MAX_ROUNDS];
-        public readonly List<MetaEffect>[] effectsByRound = new List<MetaEffect>[CONFIG.MAX_ROUNDS];
+        public readonly Round[] rounds = new Round[PRODUCTION_CONFIG.MAX_ROUNDS];
+        public readonly List<MetaEffect>[] effectsByRound = new List<MetaEffect>[PRODUCTION_CONFIG.MAX_ROUNDS];
+        public readonly Dictionary<Guid, Character> characters = new();
         public Map? map;
         public LogCollector logCollector = new();
 
+        /// <param name="map">For a fully-featured game, do not hurry to put a map here.
+        /// First initialize <see cref="SukaLambdaEngine"/> without <see cref="Map"/>.
+        /// Then initialize a map along with its <see cref="MapBlock"/>s.
+        /// </param>
         public SukaLambdaEngine(Map? map = null)
         {
             this.map = map;
+            if (map != null) map.vm = this;
+        }
+        public void SetMap(Map map)
+        {
+            this.map = map; map.vm = this;
         }
 
-        public void AddCharacter(Character character)
+        public void AddCharacter(Character character, ushort x, ushort y, Heading heading, Alignment alignment)
         {
+            if (map == null) throw new InvalidOperationException("Map is null!");
+            characters[character.id] = character;
+            map.AddCharacter(character, x, y, heading, alignment);
+            character.OnAddToMap(this);
+        }
+
+        public void AddCharacter(Character character, Alignment alignment)
+        {
+            characters[character.id] = character;
+        }
+
+        public void RemoveCharacter(Character character)
+        {
+            //characters.Remove(character.id);
+            map?.RemoveCharacter(character);
+            character.OnRemoveFromMap(this);
         }
 
         public void PrepareSkill(SkillExecution execution)
@@ -59,8 +85,14 @@ namespace sukalambda
 
         public void AddEffectToRound(MetaEffect effect, uint roundBias=0)
         {
-            if (currentRoundPointer + roundBias < CONFIG.MAX_ROUNDS)
+            if (currentRoundPointer + roundBias < PRODUCTION_CONFIG.MAX_ROUNDS)
                 effectsByRound[currentRoundPointer + roundBias].Add(effect);
+        }
+
+        public void AddEternalEffect(MetaEffect effect)
+        {
+            for (uint i = currentRoundPointer; i < PRODUCTION_CONFIG.MAX_ROUNDS; ++i)
+                effectsByRound[i].Add(effect);
         }
     }
 }

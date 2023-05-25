@@ -13,6 +13,6 @@ namespace sukalambda
         [Indexed]
         public string nickname { get; init; }
 
-        public static void ChangeNickname(string account, string nickname) => CONFIG.conn.Update(new Account { account=account, nickname=nickname });
+        public static void ChangeNickname(string account, string nickname) => PRODUCTION_CONFIG.conn.Update(new Account { account=account, nickname=nickname });
     }
 }
