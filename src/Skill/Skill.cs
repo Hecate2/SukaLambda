@@ -1,18 +1,20 @@
 ﻿using SQLite;
+using System;
 
 namespace sukalambda
 {
-    public abstract class Skill
+    public abstract class Skill : IRenderText
     {
         public Character owner;  // Maybe skills can be owned by one and executed from another?
-        public uint range { get; set; }
+        public uint rangeCommitted { get; private set; }
+        public uint rangeTemporary { get; set; }
         public Skill(Character owner) { this.owner = owner; }
 
         [Table("skill")]
         class SkillData
         {
-            [PrimaryKey]
             [Column("characterId")]
+            [Indexed]
             Guid guid { get; init; }
             [Column("name")]
             [Indexed]
@@ -20,9 +22,9 @@ namespace sukalambda
         }
 
         /// <returns>null if the target is valid; A description for reason if the target is invalid</returns>
-        public abstract string? ReasonForInvalidTarget(Character fromCharacter, Character toCharacter, SukaLambdaEngine vm);
-        public abstract HashSet<Character> ValidTargets(Character fromCharacter, SukaLambdaEngine vm);
-        public abstract Character[] AutoSelectTargets(Character fromCharacter, SukaLambdaEngine vm);
+        public string? ReasonForInvalidTarget(Character fromCharacter, Character toCharacter, SukaLambdaEngine vm) => "";
+        public HashSet<Character> ValidTargets(Character fromCharacter, SukaLambdaEngine vm) => new HashSet<Character>();
+        public Character[] AutoSelectTargets(Character fromCharacter, SukaLambdaEngine vm) => new Character[0];
         public abstract SkillExecution PlanUseSkill(Character fromCharacter, List<Character> plannedTargets, SukaLambdaEngine vm);
 
         /// <summary>
@@ -39,7 +41,9 @@ namespace sukalambda
         /// <param name="metaArgs"></param>
         /// <returns>The planned numeric effects. The length can be shorter than <see cref="SkillExecution.desiredTargets"/></returns>
         public abstract List<NumericEffect> Execute(SkillExecution skillExecution, SukaLambdaEngine vm, object[] metaArgs);
-        public abstract string WriteFinalLog(NumericEffect effect, SukaLambdaEngine vm);
+        public string WriteFinalLog(NumericEffect effect, SukaLambdaEngine vm) => $"Fantastic logs from skill of !";
+        /// <returns>Just the skill name in different languages</returns>
+        public string RenderAsText(Language lang) => "A fantastic skill !";
     }
 
     /// <summary>
@@ -48,7 +52,7 @@ namespace sukalambda
     /// </summary>
     public class SkillExecution
     {
-        public Character fromCharacter { get; init; }
+        public Character fromCharacter { get; init; }  // Maybe skills can be owned by one and executed from another?
         public Skill skill { get; init; }
         public Character[] desiredTargets { get; init; }
         public uint roundPointer { get; set; }
@@ -62,32 +66,61 @@ namespace sukalambda
         }
         public List<NumericEffect> Execute(SukaLambdaEngine vm)
         {
+            roundPointer = vm.currentRoundPointer;
             List<NumericEffect> numericEffects = skill.Execute(this, vm, metaArgs);
-            for (int i=0; i<numericEffects.Count; ++i)
+            HashSet<NumericEffect> executedNumericEffects = new();
+            for (int numericEffectPointer=0; numericEffectPointer<numericEffects.Count; ++numericEffectPointer)
             {
+                if (numericEffectPointer > PRODUCTION_CONFIG.MAX_NUMERIC_EFFECTS_IN_SINGLE_SKILL) throw new StackOverflowException("Too many NumericEffects! Probably too many targets.");
+                if (executedNumericEffects.Contains(numericEffects[numericEffectPointer])) continue;
+                executedNumericEffects.Add(numericEffects[numericEffectPointer]);
                 // Search for all MetaEffects that will be triggered by this execution,
                 // and sort meta effects by priority then by character speed.
                 // Do not use foreach, because MetaEffect can add new MetaEffects.
-                int effectPointer = 0;
                 HashSet<MetaEffect> executedEffectsForThisTarget = new();
-                while (effectPointer < vm.effectsByRound[vm.currentRoundPointer].Count)
+                for (int metaEffectPointer = 0; metaEffectPointer < vm.effectsByRound[vm.currentRoundPointer].Count; ++metaEffectPointer)
                 {
+                    if (metaEffectPointer > PRODUCTION_CONFIG.MAX_META_EFFECTS_IN_SINGLE_NUMERIC_EFFECT) throw new StackOverflowException("Too many MetaEffects on a single NumericEffect!");
                     vm.effectsByRound[vm.currentRoundPointer].Sort((l, r) =>
                         l.priority != r.priority ? l.priority.CompareTo(r.priority) :
-                        l.fromCharacter?.speed != r.fromCharacter?.speed ? l.fromCharacter.speed.CompareTo(r.fromCharacter.speed) :
+                        l.fromCharacter.statusTemporary.Speed != r.fromCharacter.statusTemporary.Speed ? l.fromCharacter.statusTemporary.Speed.CompareTo(r.fromCharacter.statusTemporary.Speed) :
                         l.fromSkillExecution.roundPointer.CompareTo(r.fromSkillExecution.roundPointer)
                     );
-                    MetaEffect metaEffect = vm.effectsByRound[vm.currentRoundPointer][effectPointer];
-                    if (!executedEffectsForThisTarget.Contains(metaEffect) && metaEffect.triggeringCondition(numericEffects[i], vm))
+                    MetaEffect metaEffect = vm.effectsByRound[vm.currentRoundPointer][metaEffectPointer];
+                    if (!executedEffectsForThisTarget.Contains(metaEffect) && metaEffect.TriggeringCondition(numericEffects[numericEffectPointer], vm))
                     {
                         executedEffectsForThisTarget.Add(metaEffect);
-                        numericEffects[i] = metaEffect.execution(numericEffects[i], vm);
+                        numericEffects[numericEffectPointer] = metaEffect.Execute(numericEffects[numericEffectPointer], vm);
                     }
-                    effectPointer++;
                 }
-                skill.WriteFinalLog(numericEffects[i], vm);
+                skill.WriteFinalLog(numericEffects[numericEffectPointer], vm);
             }
             return numericEffects;
         }
+    }
+
+    public class DummyVMSkillOnGameStart : Skill
+    {
+        public DummyVMSkillOnGameStart(Character owner) : base(owner) { }
+        public override List<NumericEffect> Execute(SkillExecution skillExecution, SukaLambdaEngine vm, object[] metaArgs) => new List<NumericEffect>();
+        public override SkillExecution PlanUseSkill(Character fromCharacter, List<Character> plannedTargets, SukaLambdaEngine vm) => new(new DummyVMCharacter(), this, new Character[] { }, new object[] { });
+    }
+    public class DummyVMSkillOnRoundStart : Skill
+    {
+        public DummyVMSkillOnRoundStart(Character owner) : base(owner) { }
+        public override List<NumericEffect> Execute(SkillExecution skillExecution, SukaLambdaEngine vm, object[] metaArgs) => new List<NumericEffect>();
+        public override SkillExecution PlanUseSkill(Character fromCharacter, List<Character> plannedTargets, SukaLambdaEngine vm) => new(new DummyVMCharacter(), this, new Character[] { }, new object[] { });
+    }
+    public class DummyVMSkillOnRoundEnd : Skill
+    {
+        public DummyVMSkillOnRoundEnd(Character owner) : base(owner) { }
+        public override List<NumericEffect> Execute(SkillExecution skillExecution, SukaLambdaEngine vm, object[] metaArgs) => new List<NumericEffect>();
+        public override SkillExecution PlanUseSkill(Character fromCharacter, List<Character> plannedTargets, SukaLambdaEngine vm) => new(new DummyVMCharacter(), this, new Character[] { }, new object[] { });
+    }
+    public class DummyVMSkillOnGameEnd : Skill
+    {
+        public DummyVMSkillOnGameEnd(Character owner) : base(owner) { }
+        public override List<NumericEffect> Execute(SkillExecution skillExecution, SukaLambdaEngine vm, object[] metaArgs) => new List<NumericEffect>();
+        public override SkillExecution PlanUseSkill(Character fromCharacter, List<Character> plannedTargets, SukaLambdaEngine vm) => new(new DummyVMCharacter(), this, new Character[] { }, new object[] { });
     }
 }

@@ -2,20 +2,29 @@
 
 namespace sukalambda
 {
-    public class NumericEffect
+    public class NumericEffect : IRenderText
     {
         public SkillExecution skillExecution { get; init; }
         public Character target { get; init; }
-        public decimal hitPointChange;
+        public NumericStatus statusChange { get; set; }
         public Dictionary<MetaEffect, List<string>> logs { get; set; } = new();
         public List<string> initialLogsFromSkill = new();
         public List<string> intermediateLogsFromSkill = new();
         public List<string> finalLogsFromSkill = new();
-        public NumericEffect(SkillExecution skillExecution, Character target, decimal hitPointChange = 0)
+        public bool willCommit { get; set; }
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="skillExecution"></param>
+        /// <param name="target"></param>
+        /// <param name="statusChange"></param>
+        /// <param name="willCommit">The effect will actually change the character status after executed</param>
+        public NumericEffect(SkillExecution skillExecution, Character target, NumericStatus? statusChange = null, bool willCommit = true)
         {
             this.skillExecution=skillExecution;
             this.target = target;
-            this.hitPointChange=hitPointChange;
+            this.statusChange=statusChange ?? new();
+            this.willCommit = willCommit;
         }
         public void AppendLog(MetaEffect effect, string log)
         {
@@ -32,15 +41,15 @@ namespace sukalambda
             }
             return finalLogs;
         }
-        public string GetLogs()
+        public string RenderAsText(Language lang)
         {
             string finalLogs = "";
             finalLogs = AppendLogsFromList(finalLogs, initialLogsFromSkill);
             bool intermediateLogsFromSkillAppended = false;
-            foreach (var kv in logs.OrderBy(kv => kv.Key.priority).ThenBy(kv => -kv.Key.fromCharacter?.speed))
+            foreach (var kv in logs.OrderBy(kv => kv.Key.priority).ThenBy(kv => -kv.Key.fromCharacter?.statusTemporary.Speed))
             {
                 if (intermediateLogsFromSkillAppended == false && (kv.Key.priority > 0 ||
-                    kv.Key.priority == 0 && kv.Key.fromCharacter?.speed < skillExecution.fromCharacter.speed))
+                    kv.Key.priority == 0 && kv.Key.fromCharacter?.statusTemporary.Speed < skillExecution.fromCharacter?.statusTemporary.Speed))
                 {
                     finalLogs = AppendLogsFromList(finalLogs, intermediateLogsFromSkill);
                     intermediateLogsFromSkillAppended = true;
@@ -52,40 +61,42 @@ namespace sukalambda
         }
     }
 
-    public class MetaEffect
+    public abstract class MetaEffect
     {
-        public Character fromCharacter { get; init; }
-        public SkillExecution fromSkillExecution { get; init; }
-        public Character toCharacter { get; init; }
-        public short priority;
-        public Func<NumericEffect, SukaLambdaEngine, bool> triggeringCondition { get; init; }
-        public Func<NumericEffect, SukaLambdaEngine, NumericEffect> execution { get; init; }
-        public MetaEffect(Character fromCharacter, SkillExecution fromSkillExecution, Character toCharacter, short priority, HashSet<uint> ApplicableRoundsBias, 
-            Func<NumericEffect, SukaLambdaEngine, bool> triggeringCondition, Func<NumericEffect, SukaLambdaEngine, NumericEffect> execution)
+        public Character fromCharacter { get; set; }
+        public SkillExecution fromSkillExecution { get; set; }
+        public HashSet<Character> toCharacters { get; set; }
+        public short priority { get; set; }
+        public object[] metaArgs { get; set; }
+        public Func<NumericEffect, SukaLambdaEngine, bool> TriggeringCondition { get; init; }
+        public Func<NumericEffect, SukaLambdaEngine, NumericEffect> Execute { get; init; }
+        public MetaEffect(Character fromCharacter, SkillExecution fromSkillExecution, HashSet<Character> toCharacters, short priority, object[] metaArgs,
+            Func<NumericEffect, SukaLambdaEngine, bool> triggeringCondition, Func<NumericEffect, SukaLambdaEngine, NumericEffect> execute)
         {
             this.fromCharacter=fromCharacter;
             this.fromSkillExecution=fromSkillExecution;
-            this.toCharacter=toCharacter;
+            this.toCharacters=toCharacters;
             this.priority=priority;
-            this.triggeringCondition=triggeringCondition;
-            this.execution=execution;
+            this.metaArgs=metaArgs;
+            this.TriggeringCondition=triggeringCondition;
+            this.Execute=execute;
         }
     }
 
-    public class ActiveEffect : MetaEffect
+    public abstract class ActiveEffect : MetaEffect
     {
-        public ActiveEffect(Character fromCharacter, SkillExecution fromSkillExecution, Character toCharacter, short priority, HashSet<uint> ApplicableRoundsBias, Func<NumericEffect, SukaLambdaEngine, NumericEffect> execution)
-            : base(fromCharacter, fromSkillExecution, toCharacter, priority, ApplicableRoundsBias, 
+        public ActiveEffect(Character fromCharacter, SkillExecution fromSkillExecution, HashSet<Character> toCharacters, short priority, object[] metaArgs, Func<NumericEffect, SukaLambdaEngine, NumericEffect> execute)
+            : base(fromCharacter, fromSkillExecution, toCharacters, priority, metaArgs,
             (effect, vm) => effect.skillExecution.fromCharacter == fromCharacter ,
-            execution)
+            execute)
         { }
     }
 
-    public class PassiveEffect : MetaEffect
+    public abstract class PassiveEffect : MetaEffect
     {
-        public PassiveEffect(Character fromCharacter, SkillExecution fromSkillExecution, Character to, short priority, HashSet<uint> ApplicableRoundsBias, Func<NumericEffect, SukaLambdaEngine, NumericEffect> execution)
-            : base(fromCharacter, fromSkillExecution, to, priority, ApplicableRoundsBias, 
-            (effect, vm) => effect.target == to,
+        public PassiveEffect(Character fromCharacter, SkillExecution fromSkillExecution, HashSet<Character> toCharacters, short priority, object[] metaArgs, Func<NumericEffect, SukaLambdaEngine, NumericEffect> execution)
+            : base(fromCharacter, fromSkillExecution, toCharacters, priority, metaArgs,
+            (effect, vm) => toCharacters.Contains(effect.target),
             execution)
         { }
     }

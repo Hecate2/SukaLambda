@@ -3,12 +3,16 @@ using System.Collections.Concurrent;
 
 namespace sukalambda
 {
-    public static class PRODUCTION_CONFIG
+    public class CONFIG
     {
         public const string DATABASE_PATH = "./SukaLambda.db3";
-        public static SQLiteConnection conn = new(new SQLiteConnectionString(DATABASE_PATH));
+        public SQLiteConnection conn = new(new SQLiteConnectionString(DATABASE_PATH));
         public const uint MAX_ROUNDS = 1024;
+        public const uint MAX_SKILLS_IN_SINGLE_ROUND = 1024;
+        public const uint MAX_NUMERIC_EFFECTS_IN_SINGLE_SKILL = 1024;
+        public const uint MAX_META_EFFECTS_IN_SINGLE_NUMERIC_EFFECT = 1024;
     }
+    public class PRODUCTION_CONFIG : CONFIG { }
 
     /// <summary>
     /// <see cref="Round">: Priority queue; [SkillExecution (by a Character), SkillExecution (by a Character), ...]
@@ -35,6 +39,9 @@ namespace sukalambda
             public string PopLog(LogLevel level) => logs.Remove(level, out string? value) ? value : "";
         }
 
+        CONFIG config { get; init; }
+        public int timeStarted = DateTime.Now.Second;
+        public Random rand { get; init; }
         public class Round : List<SkillExecution> { }
         public uint currentRoundPointer { get; private set; } = 0;
 
@@ -44,12 +51,16 @@ namespace sukalambda
         public Map? map;
         public LogCollector logCollector = new();
 
+        public DummyVMCharacter dummyVmCharacter = new();
+
         /// <param name="map">For a fully-featured game, do not hurry to put a map here.
         /// First initialize <see cref="SukaLambdaEngine"/> without <see cref="Map"/>.
-        /// Then initialize a map along with its <see cref="MapBlock"/>s.
+        /// Then initialize a map along with its <see cref="MapBlockEffect"/>s.
         /// </param>
-        public SukaLambdaEngine(Map? map = null)
+        public SukaLambdaEngine(CONFIG? config=null, Map? map = null)
         {
+            this.config = config ?? new PRODUCTION_CONFIG();
+            rand = new(timeStarted);
             this.map = map;
             if (map != null) map.vm = this;
         }
@@ -61,14 +72,14 @@ namespace sukalambda
         public void AddCharacter(Character character, ushort x, ushort y, Heading heading, Alignment alignment)
         {
             if (map == null) throw new InvalidOperationException("Map is null!");
-            characters[character.id] = character;
+            characters[character.persistedStatus.id] = character;
             map.AddCharacter(character, x, y, heading, alignment);
             character.OnAddToMap(this);
         }
 
         public void AddCharacter(Character character, Alignment alignment)
         {
-            characters[character.id] = character;
+            characters[character.persistedStatus.id] = character;
         }
 
         public void RemoveCharacter(Character character)
@@ -76,11 +87,12 @@ namespace sukalambda
             //characters.Remove(character.id);
             map?.RemoveCharacter(character);
             character.OnRemoveFromMap(this);
+            character.removedFromMap = true;
         }
 
         public void PrepareSkill(SkillExecution execution)
         {
-            execution.roundPointer = currentRoundPointer;
+            rounds[currentRoundPointer].Add(execution);
         }
 
         public void AddEffectToRound(MetaEffect effect, uint roundBias=0)
@@ -93,6 +105,54 @@ namespace sukalambda
         {
             for (uint i = currentRoundPointer; i < PRODUCTION_CONFIG.MAX_ROUNDS; ++i)
                 effectsByRound[i].Add(effect);
+        }
+
+        public void ExecuteRound()
+        {
+            if (currentRoundPointer == 0)  OnStartGame();
+            OnStartRound();
+            rounds[currentRoundPointer].Sort((l, r) =>
+                l.fromCharacter.statusTemporary.Speed != r.fromCharacter.statusTemporary.Speed ?
+                l.fromCharacter.statusTemporary.Speed.CompareTo(r.fromCharacter.statusTemporary.Speed) :
+                rand.Next(3) - 1);
+            HashSet<SkillExecution> executed = new();
+            for (int currentSkillPointer = 0; currentRoundPointer < rounds[currentRoundPointer].Count; ++currentSkillPointer)
+            {
+                if (currentRoundPointer > PRODUCTION_CONFIG.MAX_SKILLS_IN_SINGLE_ROUND) throw new StackOverflowException("Too many skills!");
+                SkillExecution execution = rounds[currentRoundPointer][currentSkillPointer];
+                if (executed.Contains(execution)) continue;
+                executed.Add(execution);
+                List<NumericEffect> numericEffects = execution.Execute(this);
+                foreach (NumericEffect effect in numericEffects)
+                    effect.target.CommitNumericEffect(effect);
+            }
+            OnEndRound();
+            // TODO: some baseline codes to judge end of game without map
+            if (map?.JudgeEndGame(this) == true || ++currentRoundPointer >= PRODUCTION_CONFIG.MAX_ROUNDS)
+                OnEndGame();
+        }
+
+        private void OnStartRound()
+        {
+            foreach (NumericEffect effect in new DummyVMSkillOnRoundStart(dummyVmCharacter).PlanUseSkill(dummyVmCharacter, new(), this).Execute(this))
+                effect.target.CommitNumericEffect(effect);
+        }
+        private void OnEndRound()
+        {
+            foreach (NumericEffect effect in new DummyVMSkillOnRoundEnd(dummyVmCharacter).PlanUseSkill(dummyVmCharacter, new(), this).Execute(this))
+                effect.target.CommitNumericEffect(effect);
+        }
+        private void OnStartGame()
+        {
+            foreach (NumericEffect effect in new DummyVMSkillOnGameStart(dummyVmCharacter).PlanUseSkill(dummyVmCharacter, new(), this).Execute(this))
+                effect.target.CommitNumericEffect(effect);
+        }
+        private void OnEndGame()
+        {
+            foreach (NumericEffect effect in new DummyVMSkillOnGameEnd(dummyVmCharacter).PlanUseSkill(dummyVmCharacter, new(), this).Execute(this))
+                effect.target.CommitNumericEffect(effect);
+            foreach (Character character in characters.Values)
+                character.PersistEarnings(config.conn);
         }
     }
 }
