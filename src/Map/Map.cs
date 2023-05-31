@@ -75,6 +75,7 @@ namespace sukalambda
         private SukaLambdaEngine? _vm;
         public SukaLambdaEngine? vm { get => _vm; set
             {
+                _vm = value;
                 foreach (var kv in mapBlocks)
                     kv.Value.vm = _vm;
             } }  // You can do something when the vm is set
