@@ -58,10 +58,11 @@ namespace sukalambda
         public NumericStatus()
         {
         }
+        public NumericStatus Clone() => new NumericStatus { HitPoint = this.HitPoint, Venenom = this.Venenom, ActionPoint = this.ActionPoint, Speed = this.Speed, Manuverability = this.Manuverability, Mobility = this.Mobility };
 
-        public static NumericStatus operator +(NumericStatus lhs, NumericStatus rhs) => new NumericStatus { HitPoint = lhs.HitPoint + rhs.HitPoint, Venenom = lhs.Venenom + rhs.Venenom, ActionPoint = lhs.ActionPoint + rhs.ActionPoint, Speed = lhs.Speed + rhs.Speed, Manuverability = lhs.Manuverability + rhs.Manuverability };
-        public static NumericStatus operator -(NumericStatus lhs, NumericStatus rhs) => new NumericStatus { HitPoint = lhs.HitPoint - rhs.HitPoint, Venenom = lhs.Venenom - rhs.Venenom, ActionPoint = lhs.ActionPoint - rhs.ActionPoint, Speed = lhs.Speed - rhs.Speed, Manuverability = lhs.Manuverability - rhs.Manuverability };
-        public static NumericStatus operator *(NumericStatus lhs, decimal rhs) => new NumericStatus { HitPoint = (long)(lhs.HitPoint * rhs), Venenom = (long)(lhs.Venenom * rhs), ActionPoint = (long)(lhs.ActionPoint * rhs), Speed = (long)(lhs.Speed * rhs), Manuverability = (long)(lhs.Manuverability * rhs) };
+        public static NumericStatus operator +(NumericStatus lhs, NumericStatus rhs) => new NumericStatus { HitPoint = lhs.HitPoint + rhs.HitPoint, Venenom = lhs.Venenom + rhs.Venenom, ActionPoint = lhs.ActionPoint + rhs.ActionPoint, Speed = lhs.Speed + rhs.Speed, Manuverability = lhs.Manuverability + rhs.Manuverability, Mobility = lhs.Mobility + rhs.Mobility };
+        public static NumericStatus operator -(NumericStatus lhs, NumericStatus rhs) => new NumericStatus { HitPoint = lhs.HitPoint - rhs.HitPoint, Venenom = lhs.Venenom - rhs.Venenom, ActionPoint = lhs.ActionPoint - rhs.ActionPoint, Speed = lhs.Speed - rhs.Speed, Manuverability = lhs.Manuverability - rhs.Manuverability, Mobility = lhs.Mobility - rhs.Mobility };
+        public static NumericStatus operator *(NumericStatus lhs, decimal rhs) => new NumericStatus { HitPoint = (long)(lhs.HitPoint * rhs), Venenom = (long)(lhs.Venenom * rhs), ActionPoint = (long)(lhs.ActionPoint * rhs), Speed = (long)(lhs.Speed * rhs), Manuverability = (long)(lhs.Manuverability * rhs), Mobility = (long)(lhs.Mobility * rhs) };
         public static NumericStatus operator *(decimal lhs, NumericStatus rhs) => rhs * lhs;
         public static NumericStatus operator /(NumericStatus lhs, long rhs) => new NumericStatus { HitPoint = lhs.HitPoint / rhs, Venenom = lhs.Venenom / rhs, ActionPoint = lhs.ActionPoint / rhs, Speed = lhs.Speed / rhs, Manuverability = lhs.Manuverability / rhs };
     }

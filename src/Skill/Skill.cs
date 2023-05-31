@@ -66,10 +66,9 @@ namespace sukalambda
         }
         public List<NumericEffect> Execute(SukaLambdaEngine vm)
         {
-            roundPointer = vm.currentRoundPointer;
             List<NumericEffect> numericEffects = skill.Execute(this, vm, metaArgs);
             HashSet<NumericEffect> executedNumericEffects = new();
-            for (int numericEffectPointer=0; numericEffectPointer<numericEffects.Count; ++numericEffectPointer)
+            for (int numericEffectPointer=0; numericEffectPointer < numericEffects.Count; ++numericEffectPointer)
             {
                 if (numericEffectPointer > PRODUCTION_CONFIG.MAX_NUMERIC_EFFECTS_IN_SINGLE_SKILL) throw new StackOverflowException("Too many NumericEffects! Probably too many targets.");
                 if (executedNumericEffects.Contains(numericEffects[numericEffectPointer])) continue;

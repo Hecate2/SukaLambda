@@ -110,6 +110,8 @@ namespace sukalambda
 
         public void ExecuteRound()
         {
+            foreach (var kvp in characters)
+                kvp.Value.statusTemporary = kvp.Value.statusCommitted.Clone();
             if (currentRoundPointer == 0)  OnStartGame();
             OnStartRound();
             HashSet<SkillExecution> executed = new();
