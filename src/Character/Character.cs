@@ -53,6 +53,7 @@ namespace sukalambda
         public long ActionPoint = 0;
         public long Speed = 0;
         public long Manuverability = 0;
+        public long Mobility = 0;
 
         public NumericStatus()
         {

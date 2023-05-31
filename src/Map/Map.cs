@@ -259,10 +259,10 @@ namespace sukalambda
                     {
                         if (outOfMap)
                             block.OnCharacterMovingOutOfMapFromThisBlock(character, headings, i);
-                        if (character.removedFromMap) break;
+                        if (character.removedFromMap || character.statusTemporary.Mobility <= 0) break;
                         if (headingResult != null)
                             block.OnCharacterMovingOut(character, headings, i);
-                        if (character.removedFromMap) break;
+                        if (character.removedFromMap || character.statusTemporary.Mobility <= 0) break;
                     }
                     if (headingResult == null) continue;
                     Tuple<ushort, ushort> movement = ComputeMovement(character, headingResult, distances[i]);
@@ -271,10 +271,10 @@ namespace sukalambda
                     Tuple<ushort, ushort> destination = new(x, y);
                     if (vm != null)
                     character.OnMoveInMap(vm, new Tuple<ushort, ushort>(x, y), plannedHeading, destination, headingResult);
-                    if (character.removedFromMap) break;
+                    if (character.removedFromMap || character.statusTemporary.Mobility <= 0) break;
                     if (blocks.TryGetValue(destination, out MapBlock? blockTo))
                         blockTo.OnCharacterMovingIn(character, headings, i);
-                    if (character.removedFromMap) break;
+                    if (character.removedFromMap || character.statusTemporary.Mobility <= 0) break;
                 }
                 conn.Update(new CharacterMap { characterID=character.persistedStatus.id, positionX=x, positionY=y });
             });

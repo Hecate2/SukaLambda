@@ -25,7 +25,7 @@ namespace sukalambda
         public string? ReasonForInvalidTarget(Character fromCharacter, Character toCharacter, SukaLambdaEngine vm) => "";
         public HashSet<Character> ValidTargets(Character fromCharacter, SukaLambdaEngine vm) => new HashSet<Character>();
         public Character[] AutoSelectTargets(Character fromCharacter, SukaLambdaEngine vm) => new Character[0];
-        public abstract SkillExecution PlanUseSkill(Character fromCharacter, List<Character> plannedTargets, SukaLambdaEngine vm);
+        public abstract SkillExecution PlanUseSkill(Character fromCharacter, List<Character> plannedTargets, SukaLambdaEngine vm, object[]? metaArgs = null);
 
         /// <summary>
         /// Write arbitrary codes in a inherited class overriding <see cref="Execute"/>
@@ -40,7 +40,7 @@ namespace sukalambda
         /// </summary>
         /// <param name="metaArgs"></param>
         /// <returns>The planned numeric effects. The length can be shorter than <see cref="SkillExecution.desiredTargets"/></returns>
-        public abstract List<NumericEffect> Execute(SkillExecution skillExecution, SukaLambdaEngine vm, object[] metaArgs);
+        public abstract List<NumericEffect> Execute(SkillExecution skillExecution, SukaLambdaEngine vm, object[]? metaArgs=null);
         public string WriteFinalLog(NumericEffect effect, SukaLambdaEngine vm) => $"Fantastic logs from skill of !";
         /// <returns>Just the skill name in different languages</returns>
         public string RenderAsText(Language lang) => "A fantastic skill !";
@@ -56,8 +56,8 @@ namespace sukalambda
         public Skill skill { get; init; }
         public Character[] desiredTargets { get; init; }
         public uint roundPointer { get; set; }
-        public object[] metaArgs;
-        public SkillExecution(Character fromCharacter, Skill skill, Character[] desiredTargets, object[] metaArgs)
+        public object[]? metaArgs;
+        public SkillExecution(Character fromCharacter, Skill skill, Character[] desiredTargets, object[]? metaArgs = null)
         {
             this.fromCharacter = fromCharacter;
             this.skill = skill;
@@ -104,26 +104,26 @@ namespace sukalambda
     public class DummyVMSkillOnGameStart : Skill
     {
         public DummyVMSkillOnGameStart(Character owner) : base(owner) { }
-        public override List<NumericEffect> Execute(SkillExecution skillExecution, SukaLambdaEngine vm, object[] metaArgs) => new List<NumericEffect>();
-        public override SkillExecution PlanUseSkill(Character fromCharacter, List<Character> plannedTargets, SukaLambdaEngine vm) => new(new DummyVMCharacter(), this, new Character[] { }, new object[] { });
+        public override List<NumericEffect> Execute(SkillExecution skillExecution, SukaLambdaEngine vm, object[]? metaArgs) => new List<NumericEffect>();
+        public override SkillExecution PlanUseSkill(Character fromCharacter, List<Character> plannedTargets, SukaLambdaEngine vm, object[]? metaArgs = null) => new(new DummyVMCharacter(), this, new Character[] { }, metaArgs);
     }
     public class DummyVMSkillOnRoundStart : Skill
     {
         public DummyVMSkillOnRoundStart(Character owner) : base(owner) { }
-        public override List<NumericEffect> Execute(SkillExecution skillExecution, SukaLambdaEngine vm, object[] metaArgs) => new List<NumericEffect>();
-        public override SkillExecution PlanUseSkill(Character fromCharacter, List<Character> plannedTargets, SukaLambdaEngine vm) => new(new DummyVMCharacter(), this, new Character[] { }, new object[] { });
+        public override List<NumericEffect> Execute(SkillExecution skillExecution, SukaLambdaEngine vm, object[]? metaArgs) => new List<NumericEffect>();
+        public override SkillExecution PlanUseSkill(Character fromCharacter, List<Character> plannedTargets, SukaLambdaEngine vm, object[]? metaArgs = null) => new(new DummyVMCharacter(), this, new Character[] { }, metaArgs);
     }
     public class DummyVMSkillOnRoundEnd : Skill
     {
         public DummyVMSkillOnRoundEnd(Character owner) : base(owner) { }
-        public override List<NumericEffect> Execute(SkillExecution skillExecution, SukaLambdaEngine vm, object[] metaArgs) => new List<NumericEffect>();
-        public override SkillExecution PlanUseSkill(Character fromCharacter, List<Character> plannedTargets, SukaLambdaEngine vm) => new(new DummyVMCharacter(), this, new Character[] { }, new object[] { });
+        public override List<NumericEffect> Execute(SkillExecution skillExecution, SukaLambdaEngine vm, object[]? metaArgs) => new List<NumericEffect>();
+        public override SkillExecution PlanUseSkill(Character fromCharacter, List<Character> plannedTargets, SukaLambdaEngine vm, object[]? metaArgs = null) => new(new DummyVMCharacter(), this, new Character[] { }, metaArgs);
     }
     public class DummyVMSkillOnGameEnd : Skill
     {
         public DummyVMSkillOnGameEnd(Character owner) : base(owner) { }
-        public override List<NumericEffect> Execute(SkillExecution skillExecution, SukaLambdaEngine vm, object[] metaArgs) => new List<NumericEffect>();
-        public override SkillExecution PlanUseSkill(Character fromCharacter, List<Character> plannedTargets, SukaLambdaEngine vm) => new(new DummyVMCharacter(), this, new Character[] { }, new object[] { });
+        public override List<NumericEffect> Execute(SkillExecution skillExecution, SukaLambdaEngine vm, object[]? metaArgs) => new List<NumericEffect>();
+        public override SkillExecution PlanUseSkill(Character fromCharacter, List<Character> plannedTargets, SukaLambdaEngine vm, object[]? metaArgs = null) => new(new DummyVMCharacter(), this, new Character[] { }, metaArgs);
     }
     /// <summary>
     /// Used for <see cref="MetaEffect"/> triggered by <see cref="MapBlock"/>
@@ -131,7 +131,13 @@ namespace sukalambda
     public class DummyMapSkill : Skill
     {
         public DummyMapSkill(Character owner) : base(owner) { }
-        public override List<NumericEffect> Execute(SkillExecution skillExecution, SukaLambdaEngine vm, object[] metaArgs) => new List<NumericEffect>();
-        public override SkillExecution PlanUseSkill(Character fromCharacter, List<Character> plannedTargets, SukaLambdaEngine vm) => new(new DummyVMCharacter(), this, new Character[] { }, new object[] { });
+        public override List<NumericEffect> Execute(SkillExecution skillExecution, SukaLambdaEngine vm, object[]? metaArgs) => new List<NumericEffect>();
+        public override SkillExecution PlanUseSkill(Character fromCharacter, List<Character> plannedTargets, SukaLambdaEngine vm, object[]? metaArgs = null) => new(new DummyMapCharacter(), this, new Character[] { }, metaArgs);
+    }
+    public class MoveSkill : Skill
+    {
+        public MoveSkill(Character owner) : base(owner) { }
+        public override List<NumericEffect> Execute(SkillExecution skillExecution, SukaLambdaEngine vm, object[]? metaArgs) => new List<NumericEffect>();
+        public override SkillExecution PlanUseSkill(Character fromCharacter, List<Character> plannedTargets, SukaLambdaEngine vm, object[]? metaArgs = null) => new(fromCharacter, this, new Character[] { }, metaArgs);
     }
 }
