@@ -26,12 +26,13 @@ namespace sukalambda
         public static implicit operator int(Heading h) => (int)h.heading % 360;
     }
 
-    public abstract class MapBlockEffect
+    public abstract class MapBlock : IRenderText
     {
         public ushort x { get; init; }
         public ushort y { get; init; }
         public SukaLambdaEngine? vm { get; set; }  // You can do something when the vm is set
-        public MapBlockEffect(ushort x, ushort y, SukaLambdaEngine? vm)
+        public List<MetaEffect> metaEffects = new();
+        public MapBlock(ushort x, ushort y, SukaLambdaEngine? vm)
         {
             this.x = x;  this.y = y;
             this.vm = vm;
@@ -60,6 +61,8 @@ namespace sukalambda
         public void OnCharacterMovingOutOfMapFromThisBlock(Character character,
             Heading?[] movements, ushort movementIndexLeavingThisBlock)
         { }
+
+        public string RenderAsText(Language lang) => "〇";  // ☉☆★◇◆◎△▲▼▽
     }
 
     /// <summary>
@@ -75,7 +78,7 @@ namespace sukalambda
                 foreach (var kv in mapBlocks)
                     kv.Value.vm = _vm;
             } }  // You can do something when the vm is set
-        internal Dictionary<Tuple<ushort, ushort>, MapBlockEffect> mapBlocks = new();
+        internal Dictionary<Tuple<ushort, ushort>, MapBlock> mapBlocks = new();
         public ushort width, height;
         public Func<SukaLambdaEngine?, bool> JudgeEndGame;
         public Func<SukaLambdaEngine?, Alignment?> JudgeWinningAlignment;
@@ -107,7 +110,7 @@ namespace sukalambda
             public bool removed { get; init; }
         }
         // Define the special effects for blocks if needed
-        public Dictionary<Tuple<ushort, ushort>, MapBlockEffect> blocks = new();
+        public Dictionary<Tuple<ushort, ushort>, MapBlock> blocks = new();
 
         public Map(string databasePath, ushort width, ushort height, SukaLambdaEngine? vm = null)
         {
@@ -119,14 +122,14 @@ namespace sukalambda
             this.height = height;
         }
 
-        public void InsertMapBlock(ushort x, ushort y, MapBlockEffect mapBlock)
+        public void InsertMapBlock(ushort x, ushort y, MapBlock mapBlock)
         {
             mapBlocks[new Tuple<ushort, ushort>(x, y)] = mapBlock;
             mapBlock.vm = vm;
         }
         public void RemoveMapBlock(ushort x, ushort y)
         {
-            if (mapBlocks.Remove(new Tuple<ushort, ushort>(x, y), out MapBlockEffect? block))
+            if (mapBlocks.Remove(new Tuple<ushort, ushort>(x, y), out MapBlock? block))
                 block.vm = null;
         }
 
@@ -252,7 +255,7 @@ namespace sukalambda
                     Heading? headingResult = CheckMovingOutOfMap(x, y, plannedHeading);
                     if (headingResult != plannedHeading) outOfMap = true;
                     // You can also change distances by yourself!
-                    if (blocks.TryGetValue(currentPosition, out MapBlockEffect? block))
+                    if (blocks.TryGetValue(currentPosition, out MapBlock? block))
                     {
                         if (outOfMap)
                             block.OnCharacterMovingOutOfMapFromThisBlock(character, headings, i);
@@ -269,7 +272,7 @@ namespace sukalambda
                     if (vm != null)
                     character.OnMoveInMap(vm, new Tuple<ushort, ushort>(x, y), plannedHeading, destination, headingResult);
                     if (character.removedFromMap) break;
-                    if (blocks.TryGetValue(destination, out MapBlockEffect? blockTo))
+                    if (blocks.TryGetValue(destination, out MapBlock? blockTo))
                         blockTo.OnCharacterMovingIn(character, headings, i);
                     if (character.removedFromMap) break;
                 }

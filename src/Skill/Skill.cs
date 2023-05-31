@@ -78,13 +78,15 @@ namespace sukalambda
                 // and sort meta effects by priority then by character speed.
                 // Do not use foreach, because MetaEffect can add new MetaEffects.
                 HashSet<MetaEffect> executedEffectsForThisTarget = new();
-                for (int metaEffectPointer = 0; metaEffectPointer < vm.effectsByRound[vm.currentRoundPointer].Count; ++metaEffectPointer)
+                vm.effectsForSingleSkillExecution = new(vm.effectsByRound[vm.currentRoundPointer]);
+                for (int metaEffectPointer = 0; metaEffectPointer < vm.effectsForSingleSkillExecution.Count; ++metaEffectPointer)
                 {
                     if (metaEffectPointer > PRODUCTION_CONFIG.MAX_META_EFFECTS_IN_SINGLE_NUMERIC_EFFECT) throw new StackOverflowException("Too many MetaEffects on a single NumericEffect!");
                     vm.effectsByRound[vm.currentRoundPointer].Sort((l, r) =>
                         l.priority != r.priority ? l.priority.CompareTo(r.priority) :
                         l.fromCharacter.statusTemporary.Speed != r.fromCharacter.statusTemporary.Speed ? l.fromCharacter.statusTemporary.Speed.CompareTo(r.fromCharacter.statusTemporary.Speed) :
-                        l.fromSkillExecution.roundPointer.CompareTo(r.fromSkillExecution.roundPointer)
+                        l.fromSkillExecution.roundPointer != r.fromSkillExecution.roundPointer ? l.fromSkillExecution.roundPointer.CompareTo(r.fromSkillExecution.roundPointer) :
+                        vm.rand.Next(3) - 1
                     );
                     MetaEffect metaEffect = vm.effectsByRound[vm.currentRoundPointer][metaEffectPointer];
                     if (!executedEffectsForThisTarget.Contains(metaEffect) && metaEffect.TriggeringCondition(numericEffects[numericEffectPointer], vm))
@@ -120,6 +122,15 @@ namespace sukalambda
     public class DummyVMSkillOnGameEnd : Skill
     {
         public DummyVMSkillOnGameEnd(Character owner) : base(owner) { }
+        public override List<NumericEffect> Execute(SkillExecution skillExecution, SukaLambdaEngine vm, object[] metaArgs) => new List<NumericEffect>();
+        public override SkillExecution PlanUseSkill(Character fromCharacter, List<Character> plannedTargets, SukaLambdaEngine vm) => new(new DummyVMCharacter(), this, new Character[] { }, new object[] { });
+    }
+    /// <summary>
+    /// Used for <see cref="MetaEffect"/> triggered by <see cref="MapBlock"/>
+    /// </summary>
+    public class DummyMapSkill : Skill
+    {
+        public DummyMapSkill(Character owner) : base(owner) { }
         public override List<NumericEffect> Execute(SkillExecution skillExecution, SukaLambdaEngine vm, object[] metaArgs) => new List<NumericEffect>();
         public override SkillExecution PlanUseSkill(Character fromCharacter, List<Character> plannedTargets, SukaLambdaEngine vm) => new(new DummyVMCharacter(), this, new Character[] { }, new object[] { });
     }

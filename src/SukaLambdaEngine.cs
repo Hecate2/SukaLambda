@@ -7,8 +7,8 @@ namespace sukalambda
     {
         public const string DATABASE_PATH = "./SukaLambda.db3";
         public SQLiteConnection conn = new(new SQLiteConnectionString(DATABASE_PATH));
-        public const uint MAX_ROUNDS = 1024;
-        public const uint MAX_SKILLS_IN_SINGLE_ROUND = 1024;
+        public const uint MAX_ROUNDS = 128;
+        public const uint MAX_SKILLS_IN_SINGLE_ROUND = 128;
         public const uint MAX_NUMERIC_EFFECTS_IN_SINGLE_SKILL = 1024;
         public const uint MAX_META_EFFECTS_IN_SINGLE_NUMERIC_EFFECT = 1024;
     }
@@ -47,6 +47,7 @@ namespace sukalambda
 
         public readonly Round[] rounds = new Round[PRODUCTION_CONFIG.MAX_ROUNDS];
         public readonly List<MetaEffect>[] effectsByRound = new List<MetaEffect>[PRODUCTION_CONFIG.MAX_ROUNDS];
+        public List<MetaEffect> effectsForSingleSkillExecution { get; set; } = new();
         public readonly Dictionary<Guid, Character> characters = new();
         public Map? map;
         public LogCollector logCollector = new();
@@ -55,7 +56,7 @@ namespace sukalambda
 
         /// <param name="map">For a fully-featured game, do not hurry to put a map here.
         /// First initialize <see cref="SukaLambdaEngine"/> without <see cref="Map"/>.
-        /// Then initialize a map along with its <see cref="MapBlockEffect"/>s.
+        /// Then initialize a map along with its <see cref="MapBlock"/>s.
         /// </param>
         public SukaLambdaEngine(CONFIG? config=null, Map? map = null)
         {
@@ -111,13 +112,13 @@ namespace sukalambda
         {
             if (currentRoundPointer == 0)  OnStartGame();
             OnStartRound();
-            rounds[currentRoundPointer].Sort((l, r) =>
-                l.fromCharacter.statusTemporary.Speed != r.fromCharacter.statusTemporary.Speed ?
-                l.fromCharacter.statusTemporary.Speed.CompareTo(r.fromCharacter.statusTemporary.Speed) :
-                rand.Next(3) - 1);
             HashSet<SkillExecution> executed = new();
             for (int currentSkillPointer = 0; currentRoundPointer < rounds[currentRoundPointer].Count; ++currentSkillPointer)
             {
+                rounds[currentRoundPointer].Sort((l, r) =>
+                    l.fromCharacter.statusTemporary.Speed != r.fromCharacter.statusTemporary.Speed ?
+                    l.fromCharacter.statusTemporary.Speed.CompareTo(r.fromCharacter.statusTemporary.Speed) :
+                    rand.Next(3) - 1);
                 if (currentRoundPointer > PRODUCTION_CONFIG.MAX_SKILLS_IN_SINGLE_ROUND) throw new StackOverflowException("Too many skills!");
                 SkillExecution execution = rounds[currentRoundPointer][currentSkillPointer];
                 if (executed.Contains(execution)) continue;

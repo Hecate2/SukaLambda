@@ -2,6 +2,11 @@
 
 namespace sukalambda
 {
+    public enum MetaEffectPriority
+    {
+        onFire = 0, onHit = short.MaxValue / 4 + 1,
+    }
+
     public class NumericEffect : IRenderText
     {
         public SkillExecution skillExecution { get; init; }
@@ -61,6 +66,12 @@ namespace sukalambda
         }
     }
 
+    /// <summary>
+    /// For example, if you want your effect to let a skill miss the target,
+    /// just set the its <see cref="NumericEffect.willCommit"/> = false;
+    /// and remove all the <see cref="MetaEffect"/> in <see cref="SukaLambdaEngine.effectsForSingleSkillExecution"/>
+    /// with priority >= <see cref="MetaEffectPriority.onHit"/>, or priority > your effect 
+    /// </summary>
     public abstract class MetaEffect
     {
         public Character fromCharacter { get; set; }
