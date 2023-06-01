@@ -69,7 +69,7 @@ namespace sukalambda
     /// <summary>
     /// For example, if you want your effect to let a skill miss the target,
     /// just set the its <see cref="NumericEffect.willCommit"/> = false;
-    /// and remove all the <see cref="MetaEffect"/> in <see cref="SukaLambdaEngine.effectsForSingleSkillExecution"/>
+    /// and remove all the <see cref="MetaEffect"/> in <see cref="SukaLambdaEngine.metaEffectsForSingleSkillExecution"/>
     /// with priority >= <see cref="MetaEffectPriority.onHit"/>, or priority > your effect 
     /// For another example, if you want to increase the <see cref="NumericStatus"/> of a Character temporarily,
     /// Define priority < 0 and re-compute the numeric effects with <see cref="Skill.Execute"/>.

@@ -66,19 +66,19 @@ namespace sukalambda
         }
         public List<NumericEffect> Execute(SukaLambdaEngine vm)
         {
-            List<NumericEffect> numericEffects = skill.Execute(this, vm, metaArgs);
+            vm.numericEffectsForSingleSkillExecution = skill.Execute(this, vm, metaArgs);
             HashSet<NumericEffect> executedNumericEffects = new();
-            for (int numericEffectPointer=0; numericEffectPointer < numericEffects.Count; ++numericEffectPointer)
+            for (int numericEffectPointer=0; numericEffectPointer < vm.numericEffectsForSingleSkillExecution.Count; ++numericEffectPointer)
             {
                 if (numericEffectPointer > PRODUCTION_CONFIG.MAX_NUMERIC_EFFECTS_IN_SINGLE_SKILL) throw new StackOverflowException("Too many NumericEffects! Probably too many targets.");
-                if (executedNumericEffects.Contains(numericEffects[numericEffectPointer])) continue;
-                executedNumericEffects.Add(numericEffects[numericEffectPointer]);
+                if (executedNumericEffects.Contains(vm.numericEffectsForSingleSkillExecution[numericEffectPointer])) continue;
+                executedNumericEffects.Add(vm.numericEffectsForSingleSkillExecution[numericEffectPointer]);
                 // Search for all MetaEffects that will be triggered by this execution,
                 // and sort meta effects by priority then by character speed.
                 // Do not use foreach, because MetaEffect can add new MetaEffects.
                 HashSet<MetaEffect> executedEffectsForThisTarget = new();
-                vm.effectsForSingleSkillExecution = new(vm.effectsByRound[vm.currentRoundPointer]);
-                for (int metaEffectPointer = 0; metaEffectPointer < vm.effectsForSingleSkillExecution.Count; ++metaEffectPointer)
+                vm.metaEffectsForSingleSkillExecution = new(vm.effectsByRound[vm.currentRoundPointer]);
+                for (int metaEffectPointer = 0; metaEffectPointer < vm.metaEffectsForSingleSkillExecution.Count; ++metaEffectPointer)
                 {
                     if (metaEffectPointer > PRODUCTION_CONFIG.MAX_META_EFFECTS_IN_SINGLE_NUMERIC_EFFECT) throw new StackOverflowException("Too many MetaEffects on a single NumericEffect!");
                     vm.effectsByRound[vm.currentRoundPointer].Sort((l, r) =>
@@ -88,15 +88,15 @@ namespace sukalambda
                         vm.rand.Next(3) - 1
                     );
                     MetaEffect metaEffect = vm.effectsByRound[vm.currentRoundPointer][metaEffectPointer];
-                    if (!executedEffectsForThisTarget.Contains(metaEffect) && metaEffect.TriggeringCondition(numericEffects[numericEffectPointer], vm))
+                    if (!executedEffectsForThisTarget.Contains(metaEffect) && metaEffect.TriggeringCondition(vm.numericEffectsForSingleSkillExecution[numericEffectPointer], vm))
                     {
                         executedEffectsForThisTarget.Add(metaEffect);
-                        numericEffects[numericEffectPointer] = metaEffect.Execute(numericEffects[numericEffectPointer], vm);
+                        vm.numericEffectsForSingleSkillExecution[numericEffectPointer] = metaEffect.Execute(vm.numericEffectsForSingleSkillExecution[numericEffectPointer], vm);
                     }
                 }
-                skill.WriteFinalLog(numericEffects[numericEffectPointer], vm);
+                skill.WriteFinalLog(vm.numericEffectsForSingleSkillExecution[numericEffectPointer], vm);
             }
-            return numericEffects;
+            return vm.numericEffectsForSingleSkillExecution;
         }
     }
 

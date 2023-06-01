@@ -47,7 +47,8 @@ namespace sukalambda
 
         public readonly Round[] rounds = new Round[PRODUCTION_CONFIG.MAX_ROUNDS];
         public readonly List<MetaEffect>[] effectsByRound = new List<MetaEffect>[PRODUCTION_CONFIG.MAX_ROUNDS];
-        public List<MetaEffect> effectsForSingleSkillExecution { get; set; } = new();
+        public List<MetaEffect> metaEffectsForSingleSkillExecution { get; set; } = new();
+        public List<NumericEffect> numericEffectsForSingleSkillExecution { get; set; } = new();
         public readonly Dictionary<Guid, Character> characters = new();
         public Map? map;
         public LogCollector logCollector = new();
