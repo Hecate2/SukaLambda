@@ -1,5 +1,5 @@
-﻿using SQLite;
-using static sukalambda.Utils;
+﻿using Microsoft.EntityFrameworkCore;
+using System.ComponentModel.DataAnnotations;
 
 namespace sukalambda
 {
@@ -65,13 +65,28 @@ namespace sukalambda
         public string RenderAsText(Language lang) => "〇";  // ☉☆★◇◆◎△▲▼▽
     }
 
+    [Index(nameof(positionX))]
+    [Index(nameof(positionY))]
+    [Index(nameof(alignment))]
+    [Index(nameof(removed))]
+    public class CharacterInMapData
+    {
+        [Key]
+        public Guid characterID { get; init; }
+        public ushort positionX { get; set; }
+        public ushort positionY { get; set; }
+        public ushort heading { get; set; }
+        public ushort? alignment { get; set; }  // 阵营
+        public bool removed { get; set; }  // whether the character had been removed from the map
+    }
+
     /// <summary>
     /// A grid with index (x=0,y=0) at top-left, and (x=width-1, y=height-1) at bottom-right.
     /// </summary>
     public abstract class Map : IRenderText
     {
         public string databasePath { get; init; }
-        public SQLiteConnection conn;
+        public GameDbContext conn;
         private SukaLambdaEngine? _vm;
         public SukaLambdaEngine? vm { get => _vm; set
             {
@@ -87,37 +102,13 @@ namespace sukalambda
         public string WinningConditions = "Describe how to win in this map!";
 
 
-        [Table("characterMap")]
-        public class CharacterMap
-        {
-            [PrimaryKey]
-            [Column("characterId")]
-            public Guid characterID { get; init; }
-            [Column("positionX")]
-            [Indexed]
-            public ushort positionX { get; init; }
-            [Column("positionY")]
-            [Indexed]
-            public ushort positionY { get; init; }
-            [Column("heading")]
-            [Indexed]
-            public ushort heading { get; init; }
-
-            [Column("alignment")]  // 阵营
-            [Indexed]
-            public ushort? alignment { get; init; }
-            [Column("removed")]    // whether the character had been removed from the map
-            [Indexed]
-            public bool removed { get; init; }
-        }
         // Define the special effects for blocks if needed
         public Dictionary<Tuple<ushort, ushort>, MapBlock> blocks = new();
 
         public Map(string databasePath, ushort width, ushort height, SukaLambdaEngine? vm = null)
         {
             this.databasePath = databasePath;
-            conn = new(new SQLiteConnectionString(databasePath));
-            conn.CreateTable<CharacterMap>();
+            conn = new(databasePath);
             this.vm = vm;
             this.width = width;
             this.height = height;
@@ -134,24 +125,30 @@ namespace sukalambda
                 block.vm = null;
         }
 
-        public int CountCharacterIncludingRemoved() => conn.Table<CharacterMap>().Count();
-        public int CountCharacter() => conn.Table<CharacterMap>().Where(c => c.removed == false).Count();
+        public int CountCharacterIncludingRemoved() => conn.characterInMap.Count();
+        public int CountCharacter() => conn.characterInMap.Where(c => c.removed == false).Count();
         public Tuple<ushort, ushort>? CharacterPosition(Character character)
         {
             //CharacterMap? characterInDatabase = conn.Table<CharacterMap>().Where(c => c.characterID == character.persistedStatus.id).FirstOrDefault();
-            CharacterMap? characterInDatabase = conn.Query<CharacterMap>($"SELECT * from characterMap WHERE characterId = '{character.persistedStatus.id}'").FirstOrDefault();
+            CharacterInMapData? characterInDatabase = conn.characterInMap.Where(c => c.characterID == character.persistedStatus.id).FirstOrDefault();
             return (characterInDatabase == null || characterInDatabase.removed == true) ? null :
                 new Tuple<ushort, ushort>(characterInDatabase.positionX, characterInDatabase.positionY);
         }
         public Tuple<ushort, ushort>? CharacterPositionIncludingRemoved(Character character)
         {
-            CharacterMap? characterInDatabase = conn.Table<CharacterMap>().Where(c => c.characterID == character.persistedStatus.id).FirstOrDefault();
+            CharacterInMapData? characterInDatabase = conn.characterInMap.Where(c => c.characterID == character.persistedStatus.id).FirstOrDefault();
             return (characterInDatabase == null) ? null :
                 new Tuple<ushort, ushort>(characterInDatabase.positionX, characterInDatabase.positionY);
         }
-        public Guid? HasCharacterAt(ushort x, ushort y) => conn.Table<CharacterMap>().Where(c => c.removed == false && c.positionX == x && c.positionY == y).FirstOrDefault()?.characterID;
-        public Guid? HasCharacterAtIncludingRemoved(ushort x, ushort y) => conn.Table<CharacterMap>().Where(c => c.positionX == x && c.positionY == y).FirstOrDefault()?.characterID;
-        public void RemoveCharacter(Character character) => conn.Query<CharacterMap>($"UPDATE characterMap SET removed=1 WHERE characterId = '{character.persistedStatus.id}'");
+        public Guid? HasCharacterAt(ushort x, ushort y) => conn.characterInMap.Where(c => c.removed == false && c.positionX == x && c.positionY == y).FirstOrDefault()?.characterID;
+        public Guid? HasCharacterAtIncludingRemoved(ushort x, ushort y) => conn.characterInMap.Where(c => c.positionX == x && c.positionY == y).FirstOrDefault()?.characterID;
+        public void RemoveCharacter(Character character)
+        {
+            CharacterInMapData characterInMap = conn.characterInMap.Where(c => c.characterID == character.persistedStatus.id).First();
+            characterInMap.removed = true;
+            conn.characterInMap.Update(characterInMap);
+            conn.SaveChanges();
+        }
 
         public void AddCharacter(Character character, ushort x, ushort y, Heading heading, Alignment? alignment=null) =>
             AddCharacter(character, x, y, heading.heading, alignment);
@@ -159,11 +156,11 @@ namespace sukalambda
         {
             if (x >= width)   throw new ArgumentException($"({x}, {y}); x={x} larger than the width of map {width}");
             if (y >= height)  throw new ArgumentException($"({x}, {y}); y={y} larger than the height of map {height}");
-            conn.RunInTransaction(() =>
+            using var tx = conn.Database.BeginTransaction();
             {
                 int count = CountCharacterIncludingRemoved();
                 if (count >= int.MaxValue) throw new ArgumentException($"Too many characters!");
-                if (CharacterPosition(character) != null) throw new ArgumentException($"This character {character.persistedStatus.accountId} had been added before");
+                if (CharacterPositionIncludingRemoved(character) != null) throw new ArgumentException($"This character {character.persistedStatus.accountId} had been added before");
                 Guid? anotherCharacterId = HasCharacterAt(x, y);
                 if (anotherCharacterId != null)
                     throw new ArgumentException((vm != null) ?
@@ -171,11 +168,13 @@ namespace sukalambda
                     :
                         $"Another character ({anotherCharacterId}) at ({x}, {y}) had been added before; no {nameof(SukaLambdaEngine)} had been specified for this map"
                     );
-                conn.Insert(new CharacterMap { characterID=character.persistedStatus.id, positionX=x, positionY=y, heading=(ushort)heading, alignment=(ushort?)alignment, removed=false });
-            });
+                conn.Add(new CharacterInMapData { characterID=character.persistedStatus.id, positionX=x, positionY=y, heading=(ushort)heading, alignment=(ushort?)alignment, removed=false });
+                conn.SaveChanges();
+            }
+            tx.Commit();
         }
         /// <returns>true if in map but removed; null if not in map; false if in map and not removed</returns>
-        public bool? IsCharacterRemoved(Character character) => conn.Table<CharacterMap>().Where(c => c.characterID == character.persistedStatus.id).FirstOrDefault()?.removed;
+        public bool? IsCharacterRemoved(Character character) => conn.characterInMap.Where(c => c.characterID == character.persistedStatus.id).FirstOrDefault()?.removed;
 
         /// <summary>
         /// Change the heading, cutting off the heading projection leaving the map
@@ -243,7 +242,7 @@ namespace sukalambda
         {
             if (headings.Length != distances.Length) throw new ArgumentException($"Different length of headings {headings.Length} and destinations {distances.Length}!");
             // Execute effects caused by MapBlocks...
-            conn.RunInTransaction(() =>
+            using var tx = conn.Database.BeginTransaction();
             {
                 ushort x, y;
                 Tuple<ushort, ushort>? currentPosition = CharacterPosition(character);
@@ -277,8 +276,10 @@ namespace sukalambda
                         blockTo.OnCharacterMovingIn(character, headings, i);
                     if (character.removedFromMap || character.statusTemporary.Mobility <= 0) break;
                 }
-                conn.Update(new CharacterMap { characterID=character.persistedStatus.id, positionX=x, positionY=y });
-            });
+                conn.Update(new CharacterInMapData { characterID=character.persistedStatus.id, positionX=x, positionY=y });
+                conn.SaveChanges();
+            }
+            tx.Commit();
         }
         public string RenderAsText(Language lang)
         {

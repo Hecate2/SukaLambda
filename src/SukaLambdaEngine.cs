@@ -1,12 +1,11 @@
-﻿using SQLite;
-using System.Collections.Concurrent;
+﻿using System.Collections.Concurrent;
 
 namespace sukalambda
 {
     public class CONFIG
     {
         public const string DATABASE_PATH = "./SukaLambda.db3";
-        public SQLiteConnection conn = new(new SQLiteConnectionString(DATABASE_PATH));
+        public static PersistenceDbContext conn = new();
         public const uint MAX_ROUNDS = 128;
         public const uint MAX_SKILLS_IN_SINGLE_ROUND = 128;
         public const uint MAX_NUMERIC_EFFECTS_IN_SINGLE_SKILL = 1024;
@@ -39,7 +38,6 @@ namespace sukalambda
             public string PopLog(LogLevel level) => logs.Remove(level, out string? value) ? value : "";
         }
 
-        CONFIG config { get; init; }
         public int timeStarted = DateTime.Now.Second;
         public Random rand { get; init; }
         public class Round : List<SkillExecution> { }
@@ -61,7 +59,6 @@ namespace sukalambda
         /// </param>
         public SukaLambdaEngine(CONFIG? config=null, Map? map = null)
         {
-            this.config = config ?? new PRODUCTION_CONFIG();
             rand = new(timeStarted);
             this.map = map;
             if (map != null) map.vm = this;
@@ -156,7 +153,7 @@ namespace sukalambda
             foreach (NumericEffect effect in new DummyVMSkillOnGameEnd(dummyVmCharacter).PlanUseSkill(dummyVmCharacter, new(), this).Execute(this))
                 effect.target.CommitNumericEffect(effect);
             foreach (Character character in characters.Values)
-                character.PersistEarnings(config.conn);
+                character.PersistEarnings();
         }
     }
 }

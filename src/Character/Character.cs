@@ -1,4 +1,4 @@
-﻿using SQLite;
+﻿using System.ComponentModel.DataAnnotations;
 
 namespace sukalambda
 {
@@ -67,28 +67,17 @@ namespace sukalambda
         public static NumericStatus operator /(NumericStatus lhs, long rhs) => new NumericStatus { HitPoint = lhs.HitPoint / rhs, Venenom = lhs.Venenom / rhs, ActionPoint = lhs.ActionPoint / rhs, Speed = lhs.Speed / rhs, Manuverability = lhs.Manuverability / rhs };
     }
 
+    public class CharacterData
+    {
+        [Key]
+        public Guid id { get; set; }
+        public string accountId { get; init; }
+        public string characterName { get; init; }
+        public uint experience { get; set; }
+    }
+
     public abstract class Character : IRenderText
     {
-        [Table("character")]
-        public class CharacterDataPersisted
-        {
-            [PrimaryKey]
-            [Column("id")]
-            public Guid id { get; set; }
-
-            [Column("accountId")]
-            [Indexed]
-            public string accountId { get; init; }
-
-            [Column("characterName")]
-            [Indexed]
-            public string characterName { get; init; }
-
-            [Column("experience")]
-            [Indexed]
-            public uint experience { get; init; }
-        }
-
         public List<Skill> skills { get; set; } = new();
         /// <summary>
         /// Call <see cref="SukaLambdaEngine.RemoveCharacter"/>!
@@ -97,25 +86,54 @@ namespace sukalambda
         /// </summary>
         public bool removedFromMap { get; set; } = false;
 
-        public CharacterDataPersisted persistedStatus { get; set; }
+        public CharacterData persistedStatus { get; set; }
         public NumericStatus statusCommitted { get; private set; }
         public NumericStatus statusTemporary { get; set; }
         public Alignment? defaultAlignment = null;
 
-        public void LoadFromDatabase(SQLiteConnection conn, string accountId, string characterName) { throw new NotImplementedException(); }
-        public void PersistEarnings(SQLiteConnection conn) { throw new NotImplementedException(); }  // Write persistedStatus
-        public void GetSkills(SukaLambdaEngine vm) { }
-        public void ComputeStatus(SukaLambdaEngine vm) { }
+        private void LoadFromDatabase(string accountId, string characterName)
+        {
+            using var tx = PRODUCTION_CONFIG.conn.Database.BeginTransaction();
+            {
+                this.persistedStatus = PRODUCTION_CONFIG.conn.Characters.Where(c => c.id == this.persistedStatus.id).First();
+                GetSkillsFromDb();
+            }
+        }
+        public void PersistEarnings()
+        {
+            CharacterData? originalCharacter = PRODUCTION_CONFIG.conn.Characters.Where(c => c.id == this.persistedStatus.id).FirstOrDefault();
+            if (originalCharacter == null)
+                PRODUCTION_CONFIG.conn.Characters.Add(this.persistedStatus);
+            else
+                if (originalCharacter.experience < this.persistedStatus.experience)
+                {
+                    originalCharacter.experience = this.persistedStatus.experience;
+                    PRODUCTION_CONFIG.conn.Characters.Update(originalCharacter);
+                }
+            PRODUCTION_CONFIG.conn.SaveChanges();
+        }
+        private void GetSkillsFromDb()
+        {
+            List<SkillData> skills = PRODUCTION_CONFIG.conn.Skills.Where(sk => sk.characterId == this.persistedStatus.id).ToList();
+            foreach (SkillData skillData in skills)
+            {
+                Type? t = Type.GetType(skillData.skillClassName);
+                if (t == null) continue;
+                Skill? skill = (Skill?)Activator.CreateInstance(t, this);
+                if (skill != null)
+                    this.skills.Add(skill);
+            }
+        }
+        public void ComputeNumericStatus(SukaLambdaEngine vm) { }
         public void OnAddToMap(SukaLambdaEngine vm) { }
         public void OnMoveInMap(SukaLambdaEngine vm, Tuple<ushort, ushort> src, Heading srcHeading, Tuple<ushort, ushort> dst, Heading dstHeading) { }
         public void OnRemoveFromMap(SukaLambdaEngine vm) { }
         public abstract string RenderAsText(Language lang);
 
-        public Character(string accountId)
+        public Character(string accountId, string? characterName = null)
         {
-        }
-        public Character(string accountId, string characterName)
-        {
+            if (characterName == null)  characterName = this.GetType().Name;
+            //LoadFromDatabase(accountId, characterName);
         }
         public void CommitNumericEffect(NumericEffect numericEffect) { throw new NotImplementedException(); }
     }

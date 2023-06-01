@@ -1,22 +1,28 @@
-﻿using SQLite;
+﻿using Microsoft.EntityFrameworkCore;
 
 namespace sukalambda
 {
-    public static partial class Utils
+    public class PersistenceDbContext : DbContext
     {
-        public static string? GetTableName(Type type)
+        public string dbPath { get; } = PRODUCTION_CONFIG.DATABASE_PATH;
+        public DbSet<AccountData> Accounts { get; set; }
+        public DbSet<CharacterData> Characters { get; set; }
+        public DbSet<SkillData> Skills { get; set; }
+        protected override void OnConfiguring(DbContextOptionsBuilder options) => options.UseSqlite($"Data Source={dbPath}");
+        public PersistenceDbContext()
         {
-            var att = type.GetCustomAttributes(typeof(TableAttribute), true).FirstOrDefault();
-            if (att != null)
-                return ((TableAttribute)att).Name;
-            return null;
+            this.Database.EnsureCreated();  // works only when there is no table
         }
-        public static string? GetColumnName(Type type)
+    }
+    public class GameDbContext : DbContext
+    {
+        public string dbPath { get; init; }
+        public DbSet<CharacterInMapData> characterInMap { get; set; }
+        public GameDbContext(string dbPath)
         {
-            var att = type.GetCustomAttributes(typeof(ColumnAttribute), true).FirstOrDefault();
-            if (att != null)
-                return ((ColumnAttribute)att).Name;
-            return null;
+            this.dbPath = dbPath;
+            this.Database.EnsureCreated();  // works only when there is no table
         }
+        protected override void OnConfiguring(DbContextOptionsBuilder options) => options.UseSqlite($"Data Source={dbPath}");
     }
 }

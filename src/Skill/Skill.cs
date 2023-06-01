@@ -1,25 +1,21 @@
-﻿using SQLite;
+﻿using Microsoft.EntityFrameworkCore;
 using System;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace sukalambda
 {
+    public class SkillData
+    {
+        public Guid characterId { get; init; }
+        public string skillClassName { get; init; }
+    }
+
     public abstract class Skill : IRenderText
     {
         public Character owner;  // Maybe skills can be owned by one and executed from another?
         public uint rangeCommitted { get; private set; }
         public uint rangeTemporary { get; set; }
         public Skill(Character owner) { this.owner = owner; }
-
-        [Table("skill")]
-        class SkillData
-        {
-            [Column("characterId")]
-            [Indexed]
-            Guid guid { get; init; }
-            [Column("name")]
-            [Indexed]
-            string name { get; init; }
-        }
 
         /// <returns>null if the target is valid; A description for reason if the target is invalid</returns>
         public string? ReasonForInvalidTarget(Character fromCharacter, Character toCharacter, SukaLambdaEngine vm) => "";

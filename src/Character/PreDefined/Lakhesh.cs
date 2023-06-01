@@ -4,7 +4,7 @@
     {
         public Lakhesh(string accountId) : base(accountId)
         {
-            this.persistedStatus = new CharacterDataPersisted { id = Guid.NewGuid(), accountId = accountId, characterName = nameof(Lakhesh), experience=0 };
+            this.persistedStatus = new CharacterData { id = Guid.NewGuid(), accountId = accountId, characterName = nameof(Lakhesh), experience=0 };
         }
 
         public override string RenderAsText(Language lang)
