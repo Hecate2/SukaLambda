@@ -31,7 +31,7 @@ namespace sukalambda
     {
         public class LogCollector
         {
-            public enum LogLevel { Trace, Debug, Info, Gameplay, Warn, Error, Fatal }
+            public enum LogLevel { Trace, Debug, Info, Warn, Error, Fatal, Engine, Map, Character, Round, Skill, NumericEffect, MetaEffect }
             internal readonly ConcurrentDictionary<LogLevel, string> logs = new();
             public void Log(LogLevel level, string message) => logs.AddOrUpdate(level, message, (level, oldMessage) => oldMessage + message);
             public string ViewLog(LogLevel level) => logs.TryGetValue(level, out string? value) ? value : "";

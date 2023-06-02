@@ -23,7 +23,7 @@ namespace sukalambda
         /// <param name="skillExecution"></param>
         /// <param name="target"></param>
         /// <param name="statusChange"></param>
-        /// <param name="willCommit">The effect will actually change the character status after executed</param>
+        /// <param name="willCommit">The effect will actually change <see cref="Character.statusCommitted"/> after executed</param>
         public NumericEffect(SkillExecution skillExecution, Character target, NumericStatus? statusChange = null, bool willCommit = true)
         {
             this.skillExecution=skillExecution;
