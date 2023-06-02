@@ -26,6 +26,11 @@ namespace sukalambda
         public static implicit operator int(Heading h) => (int)h.heading % 360;
     }
 
+    public enum Altitude
+    {
+        Surface = 0, Air = 16, Space = 32, Underwater = -16,
+    }
+
     public abstract class MapBlock : IRenderText
     {
         public ushort x { get; init; }
