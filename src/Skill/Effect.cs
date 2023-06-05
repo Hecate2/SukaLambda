@@ -68,7 +68,8 @@ namespace sukalambda
 
     /// <summary>
     /// For example, if you want your effect to let a skill miss the target,
-    /// just set the its <see cref="NumericEffect.willCommit"/> = false;
+    /// just return null in `Execute`, or
+    /// just set the <see cref="NumericEffect.willCommit"/> = false;
     /// and remove all the <see cref="MetaEffect"/> in <see cref="SukaLambdaEngine.metaEffectsForSingleSkillExecution"/>
     /// with priority >= <see cref="MetaEffectPriority.onHit"/>, or priority > your effect 
     /// For another example, if you want to increase the <see cref="NumericStatus"/> of a Character temporarily,
@@ -81,10 +82,10 @@ namespace sukalambda
         public HashSet<Character> toCharacters { get; set; }
         public short priority { get; set; }
         public object[] metaArgs { get; set; }
-        public Func<NumericEffect, SukaLambdaEngine, bool> TriggeringCondition { get; init; }
-        public Func<NumericEffect, SukaLambdaEngine, NumericEffect> Execute { get; init; }
+        public Func<NumericEffect?, SukaLambdaEngine, bool> TriggeringCondition { get; init; }
+        public Func<NumericEffect?, SukaLambdaEngine, NumericEffect?> Execute { get; init; }
         public MetaEffect(Character fromCharacter, SkillExecution fromSkillExecution, HashSet<Character> toCharacters, short priority, object[] metaArgs,
-            Func<NumericEffect, SukaLambdaEngine, bool> triggeringCondition, Func<NumericEffect, SukaLambdaEngine, NumericEffect> execute)
+            Func<NumericEffect?, SukaLambdaEngine, bool> triggeringCondition, Func<NumericEffect, SukaLambdaEngine, NumericEffect> execute)
         {
             this.fromCharacter=fromCharacter;
             this.fromSkillExecution=fromSkillExecution;

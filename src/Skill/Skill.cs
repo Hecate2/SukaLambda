@@ -53,6 +53,7 @@ namespace sukalambda
     /// <summary>
     /// <see cref="SkillExecution"/> is a plan to use a skill.
     /// Generated after a player decides to use a skill of a character, on a list of targets.
+    /// Usually, do not inherit this class
     /// </summary>
     public class SkillExecution
     {
@@ -72,21 +73,52 @@ namespace sukalambda
         }
         public List<NumericEffect> Execute(SukaLambdaEngine vm)
         {
-            vm.numericEffectsForSingleSkillExecution = skill.Execute(this, vm, metaArgs);
+            vm.numericEffectsForSingleSkillExecution = new();
+            vm.metaEffectsForSingleSkillExecution = new(vm.effectsByRound[vm.currentRoundPointer]);
+            HashSet<MetaEffect> executedMetaEffectsForThisSkill = new();
+
+            // Before exeuction of skill: execute MetaEffects of priority < 0
+            int metaEffectPointerBeforeSkill = 0;
+            for ( ; metaEffectPointerBeforeSkill < vm.metaEffectsForSingleSkillExecution.Count; ++metaEffectPointerBeforeSkill)
+            {
+                vm.metaEffectsForSingleSkillExecution.Sort((l, r) =>
+                    l.priority != r.priority ? l.priority.CompareTo(r.priority) :
+                    l.fromCharacter.statusTemporary.Speed != r.fromCharacter.statusTemporary.Speed ? l.fromCharacter.statusTemporary.Speed.CompareTo(r.fromCharacter.statusTemporary.Speed) :
+                    l.fromSkillExecution.roundPointer != r.fromSkillExecution.roundPointer ? l.fromSkillExecution.roundPointer.CompareTo(r.fromSkillExecution.roundPointer) :
+                    vm.rand.Next(3) - 1
+                );
+                if (vm.metaEffectsForSingleSkillExecution[metaEffectPointerBeforeSkill].priority >= 0) break;
+                MetaEffect metaEffect = vm.effectsByRound[vm.currentRoundPointer][metaEffectPointerBeforeSkill];
+                if (!executedMetaEffectsForThisSkill.Contains(metaEffect) && metaEffect.TriggeringCondition(null, vm))
+                {
+                    executedMetaEffectsForThisSkill.Add(metaEffect);
+                    NumericEffect? numericEffect = metaEffect.Execute(null, vm);
+                    if (numericEffect != null)
+                        vm.numericEffectsForSingleSkillExecution.Add(numericEffect);
+                }
+            }
+
+            // Execute our skill!
+            vm.numericEffectsForSingleSkillExecution =
+                vm.numericEffectsForSingleSkillExecution.Concat(skill.Execute(this, vm, metaArgs)).ToList();
+            
+            // Modify the resulting NumericEffects, or set to null to let the effect miss the target
             HashSet<NumericEffect> executedNumericEffects = new();
             for (int numericEffectPointer=0; numericEffectPointer < vm.numericEffectsForSingleSkillExecution.Count; ++numericEffectPointer)
             {
                 if (numericEffectPointer > PRODUCTION_CONFIG.MAX_NUMERIC_EFFECTS_IN_SINGLE_SKILL) throw new StackOverflowException("Too many NumericEffects! Probably too many targets.");
-                if (executedNumericEffects.Contains(vm.numericEffectsForSingleSkillExecution[numericEffectPointer])) continue;
-                executedNumericEffects.Add(vm.numericEffectsForSingleSkillExecution[numericEffectPointer]);
+                NumericEffect validNumericEffect = vm.numericEffectsForSingleSkillExecution[numericEffectPointer];
+                if (executedNumericEffects.Contains(validNumericEffect)) continue;
+                executedNumericEffects.Add(validNumericEffect);
                 // Search for all MetaEffects that will be triggered by this execution,
                 // and sort meta effects by priority then by character speed.
                 // Do not use foreach, because MetaEffect can add new MetaEffects.
-                HashSet<MetaEffect> executedEffectsForThisTarget = new();
+                HashSet<MetaEffect> executedMetaEffectsForThisTarget = new();
                 vm.metaEffectsForSingleSkillExecution = new(vm.effectsByRound[vm.currentRoundPointer]);
-                for (int metaEffectPointer = 0; metaEffectPointer < vm.metaEffectsForSingleSkillExecution.Count; ++metaEffectPointer)
+                for (int metaEffectPointer=metaEffectPointerBeforeSkill; metaEffectPointer < vm.metaEffectsForSingleSkillExecution.Count; ++metaEffectPointer)
                 {
                     if (metaEffectPointer > PRODUCTION_CONFIG.MAX_META_EFFECTS_IN_SINGLE_NUMERIC_EFFECT) throw new StackOverflowException("Too many MetaEffects on a single NumericEffect!");
+                    if (vm.metaEffectsForSingleSkillExecution[metaEffectPointer].priority < 0) continue;
                     vm.effectsByRound[vm.currentRoundPointer].Sort((l, r) =>
                         l.priority != r.priority ? l.priority.CompareTo(r.priority) :
                         l.fromCharacter.statusTemporary.Speed != r.fromCharacter.statusTemporary.Speed ? l.fromCharacter.statusTemporary.Speed.CompareTo(r.fromCharacter.statusTemporary.Speed) :
@@ -94,13 +126,26 @@ namespace sukalambda
                         vm.rand.Next(3) - 1
                     );
                     MetaEffect metaEffect = vm.effectsByRound[vm.currentRoundPointer][metaEffectPointer];
-                    if (!executedEffectsForThisTarget.Contains(metaEffect) && metaEffect.TriggeringCondition(vm.numericEffectsForSingleSkillExecution[numericEffectPointer], vm))
+                    if (!executedMetaEffectsForThisSkill.Contains(metaEffect) &&
+                        !executedMetaEffectsForThisTarget.Contains(metaEffect) && metaEffect.TriggeringCondition(validNumericEffect, vm))
                     {
-                        executedEffectsForThisTarget.Add(metaEffect);
-                        vm.numericEffectsForSingleSkillExecution[numericEffectPointer] = metaEffect.Execute(vm.numericEffectsForSingleSkillExecution[numericEffectPointer], vm);
+                        // DO NOT executedMetaEffectsForThisSkill.Add(metaEffect);
+                        executedMetaEffectsForThisTarget.Add(metaEffect);
+                        NumericEffect? newNumericEffect = metaEffect.Execute(validNumericEffect, vm);
+                        if (newNumericEffect != null)
+                        {
+                            validNumericEffect = newNumericEffect;
+                            vm.numericEffectsForSingleSkillExecution[numericEffectPointer] = newNumericEffect;
+                        }
+                        else
+                        {
+                            vm.numericEffectsForSingleSkillExecution.Remove(validNumericEffect);
+                            --numericEffectPointer;
+                            break;
+                        }
                     }
                 }
-                skill.WriteFinalLog(vm.numericEffectsForSingleSkillExecution[numericEffectPointer], vm);
+                skill.WriteFinalLog(validNumericEffect, vm);
             }
             return vm.numericEffectsForSingleSkillExecution;
         }
