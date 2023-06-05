@@ -12,6 +12,7 @@ namespace sukalambda
 
     public abstract class Skill : IRenderText
     {
+        public ushort priority = 0;
         public Character owner;  // Maybe skills can be owned by one and executed from another?
         public uint rangeCommitted { get; private set; }
         public uint rangeTemporary { get; set; }
@@ -55,6 +56,7 @@ namespace sukalambda
     /// </summary>
     public class SkillExecution
     {
+        public ushort priority;
         public Character fromCharacter { get; init; }  // Maybe skills can be owned by one and executed from another?
         public Skill skill { get; init; }
         public Character[] desiredTargets { get; init; }
@@ -64,6 +66,7 @@ namespace sukalambda
         {
             this.fromCharacter = fromCharacter;
             this.skill = skill;
+            this.priority = skill.priority;
             this.desiredTargets = desiredTargets;
             this.metaArgs = metaArgs;
         }
@@ -105,6 +108,7 @@ namespace sukalambda
 
     public class DummyVMSkillOnGameStart : Skill
     {
+        public new ushort priority = ushort.MinValue;
         public DummyVMSkillOnGameStart() : base(PRODUCTION_CONFIG.dummyVm) { }
         public override List<NumericEffect> Execute(SkillExecution skillExecution, SukaLambdaEngine vm, object[]? metaArgs) => new List<NumericEffect>();
         public override SkillExecution PlanUseSkill(Character fromCharacter, List<Character> plannedTargets, SukaLambdaEngine vm, object[]? metaArgs = null) => new(new DummyVMCharacter(), this, new Character[] { }, metaArgs);
@@ -112,6 +116,7 @@ namespace sukalambda
     }
     public class DummyVMSkillOnRoundStart : Skill
     {
+        public new ushort priority = ushort.MinValue;
         public DummyVMSkillOnRoundStart() : base(PRODUCTION_CONFIG.dummyVm) { }
         public override List<NumericEffect> Execute(SkillExecution skillExecution, SukaLambdaEngine vm, object[]? metaArgs) => new List<NumericEffect>();
         public override SkillExecution PlanUseSkill(Character fromCharacter, List<Character> plannedTargets, SukaLambdaEngine vm, object[]? metaArgs = null) => new(new DummyVMCharacter(), this, new Character[] { }, metaArgs);
@@ -119,6 +124,7 @@ namespace sukalambda
     }
     public class DummyVMSkillOnRoundEnd : Skill
     {
+        public new ushort priority = ushort.MaxValue;
         public DummyVMSkillOnRoundEnd() : base(PRODUCTION_CONFIG.dummyVm) { }
         public override List<NumericEffect> Execute(SkillExecution skillExecution, SukaLambdaEngine vm, object[]? metaArgs) => new List<NumericEffect>();
         public override SkillExecution PlanUseSkill(Character fromCharacter, List<Character> plannedTargets, SukaLambdaEngine vm, object[]? metaArgs = null) => new(new DummyVMCharacter(), this, new Character[] { }, metaArgs);
@@ -126,6 +132,7 @@ namespace sukalambda
     }
     public class DummyVMSkillOnGameEnd : Skill
     {
+        public new ushort priority = ushort.MaxValue;
         public DummyVMSkillOnGameEnd() : base(PRODUCTION_CONFIG.dummyVm) { }
         public override List<NumericEffect> Execute(SkillExecution skillExecution, SukaLambdaEngine vm, object[]? metaArgs) => new List<NumericEffect>();
         public override SkillExecution PlanUseSkill(Character fromCharacter, List<Character> plannedTargets, SukaLambdaEngine vm, object[]? metaArgs = null) => new(PRODUCTION_CONFIG.dummyVm, this, new Character[] { }, metaArgs);

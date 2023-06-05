@@ -158,6 +158,7 @@ namespace sukalambda
             for (int currentSkillPointer = 0; currentRoundPointer < rounds[currentRoundPointer].Count; ++currentSkillPointer)
             {
                 rounds[currentRoundPointer].Sort((l, r) =>
+                    l.priority != r.priority ? l.priority.CompareTo(r.priority) :
                     l.fromCharacter.statusTemporary.Speed != r.fromCharacter.statusTemporary.Speed ?
                     l.fromCharacter.statusTemporary.Speed.CompareTo(r.fromCharacter.statusTemporary.Speed) :
                     rand.Next(3) - 1);
