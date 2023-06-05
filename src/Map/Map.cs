@@ -14,7 +14,7 @@ namespace sukalambda
         SW = 225,
         NW = 315,
     }
-    public class Heading
+    public class Heading : IRenderText
     {
         public HeadingDirection heading;
         public Heading(HeadingDirection heading)  { this.heading=heading; }
@@ -24,6 +24,21 @@ namespace sukalambda
         public override string ToString() => $"Heading[{string.Format("{0:000}", heading)}]";
         public static implicit operator HeadingDirection(Heading h) => h.heading;
         public static implicit operator int(Heading h) => (int)h.heading % 360;
+        public string RenderAsText(Language lang)
+        {
+            switch ((ushort)heading)
+            {
+                case (ushort)HeadingDirection.Left:   return "←";
+                case (ushort)HeadingDirection.Right:  return "→";
+                case (ushort)HeadingDirection.Up:     return "↑";
+                case (ushort)HeadingDirection.Down:   return "↓";
+                case (ushort)HeadingDirection.NE:     return "↗";
+                case (ushort)HeadingDirection.SE:   return "↘";
+                case (ushort)HeadingDirection.SW:   return "↙";
+                case (ushort)HeadingDirection.NW:   return "↖";
+                default: return "";
+            }
+        }
     }
 
     public enum Altitude
@@ -33,6 +48,7 @@ namespace sukalambda
 
     public abstract class MapBlock : IRenderText
     {
+        public string blockAsText = "〇";  // ☉☆★◇◆◎△▲▼▽
         public ushort x { get; init; }
         public ushort y { get; init; }
         public SukaLambdaEngine? vm { get; set; }  // You can do something when the vm is set
@@ -71,7 +87,7 @@ namespace sukalambda
             Heading?[] movements, ushort movementIndexLeavingThisBlock)
         { }
 
-        public string RenderAsText(Language lang) => "〇";  // ☉☆★◇◆◎△▲▼▽
+        public string RenderAsText(Language lang) => blockAsText;
     }
 
     [Index(nameof(positionX))]
@@ -95,16 +111,16 @@ namespace sukalambda
     /// </summary>
     public abstract class Map : IRenderText
     {
+        public string basicBlockAsText = "□";
         public string databasePath { get; init; }
         public GameDbContext conn;
         private SukaLambdaEngine? _vm;
         public SukaLambdaEngine? vm { get => _vm; set
             {
                 _vm = value;
-                foreach (var kv in mapBlocks)
+                foreach (var kv in blocks)
                     kv.Value.vm = _vm;
             } }  // You can do something when the vm is set
-        internal Dictionary<Tuple<ushort, ushort>, MapBlock> mapBlocks = new();
         public ushort width, height;
         public Func<SukaLambdaEngine?, bool> JudgeEndGame;
         public Func<SukaLambdaEngine?, Alignment?> JudgeWinningAlignment;
@@ -114,6 +130,13 @@ namespace sukalambda
 
         // Define the special effects for blocks if needed
         public Dictionary<Tuple<ushort, ushort>, MapBlock> blocks = new();
+
+        public Dictionary<Alignment, HashSet<Character>> charactersNotDetectedByAlignment = new();
+        public void ClearUndetection()
+        {
+            foreach (var k in charactersNotDetectedByAlignment.Keys)
+                charactersNotDetectedByAlignment[k].Clear();
+        }
 
         public Map(string databasePath, ushort width, ushort height, SukaLambdaEngine? vm = null)
         {
@@ -126,12 +149,12 @@ namespace sukalambda
 
         public void InsertMapBlock(ushort x, ushort y, MapBlock mapBlock)
         {
-            mapBlocks[new Tuple<ushort, ushort>(x, y)] = mapBlock;
+            blocks[new Tuple<ushort, ushort>(x, y)] = mapBlock;
             mapBlock.vm = vm;
         }
         public void RemoveMapBlock(ushort x, ushort y)
         {
-            if (mapBlocks.Remove(new Tuple<ushort, ushort>(x, y), out MapBlock? block))
+            if (blocks.Remove(new Tuple<ushort, ushort>(x, y), out MapBlock? block))
                 block.vm = null;
         }
 
@@ -150,6 +173,7 @@ namespace sukalambda
             return (characterInDatabase == null) ? null :
                 new Tuple<ushort, ushort>(characterInDatabase.positionX, characterInDatabase.positionY);
         }
+        public List<CharacterInMapData> AllCharacters() => conn.characterInMap.Where(c => c.removed == false).ToList();
         public Guid? HasCharacterAt(ushort x, ushort y) => conn.characterInMap.Where(c => c.removed == false && c.positionX == x && c.positionY == y).FirstOrDefault()?.characterID;
         public Guid? HasCharacterAtIncludingRemoved(ushort x, ushort y) => conn.characterInMap.Where(c => c.positionX == x && c.positionY == y).FirstOrDefault()?.characterID;
         public void RemoveCharacter(Character character)
@@ -291,9 +315,51 @@ namespace sukalambda
             }
             tx.Commit();
         }
-        public string RenderAsText(Language lang)
+        public string RenderAsText(Language lang) => RenderAsText(lang, null);
+        public string RenderAsText(Language lang, Alignment? alignment = null)
         {
-            return "";
+            // TODO: use renderPriority for each kind of objects?
+            int basicBlockOccupiesColumns = basicBlockAsText.Count();
+            int basicBlockOccupiesRows = basicBlockAsText.Count(ch => ch == '\n') + 1;
+            string[] singleRow = Enumerable.Repeat(basicBlockAsText, width).ToArray();
+            string[][] wholeMap = Enumerable.Repeat(singleRow, height).ToArray();
+            foreach (var kvp in blocks)
+            {
+                if (kvp.Key.Item1 >= width || kvp.Key.Item2 >= height) continue;
+                string text = kvp.Value.RenderAsText(lang);
+                if (text == "") continue;
+                if (text.Count(ch => ch == '\n') == 0)
+                    text = string.Join("\n", Enumerable.Repeat(text, basicBlockOccupiesRows));
+                wholeMap[kvp.Key.Item2][kvp.Key.Item1] = text;
+            }
+
+            if (vm != null)
+            {
+                List<CharacterInMapData> allCharacters = AllCharacters();
+                // render characters
+                foreach (CharacterInMapData characterInMap in allCharacters)
+                {
+                    Character character = vm.characters[characterInMap.characterID];
+                    if (alignment != null && charactersNotDetectedByAlignment.ContainsKey((Alignment)alignment)
+                        && charactersNotDetectedByAlignment[(Alignment)alignment].Contains(character))
+                        continue;
+                    string text = string.Join("", Enumerable.Repeat(character.RenderAsText(lang), basicBlockOccupiesColumns));
+                    if (text == "") continue;
+                    if (text.Count(ch => ch == '\n') == 0)
+                        text = string.Join("\n", Enumerable.Repeat(text, basicBlockOccupiesRows));
+                    wholeMap[characterInMap.positionY][characterInMap.positionX] = text;
+                }
+            }
+
+            string finalText = "";
+            foreach (string[] row in wholeMap)
+                for (int i = 0; i < basicBlockOccupiesRows; i++)
+                {
+                    foreach (string block in row)
+                        finalText += block.Split('\n')[i];
+                    finalText += '\n';
+                }
+            return finalText.TrimEnd('\n');
         }
     }
 }
