@@ -22,6 +22,13 @@ namespace sukalambda
         public HashSet<Character> ValidTargets(Character fromCharacter, SukaLambdaEngine vm) => new HashSet<Character>();
         public Character[] AutoSelectTargets(Character fromCharacter, SukaLambdaEngine vm) => new Character[0];
         public abstract SkillExecution PlanUseSkill(Character fromCharacter, List<Character> plannedTargets, SukaLambdaEngine vm, object[]? metaArgs = null);
+        /// <summary>
+        /// Used by human to input commands
+        /// </summary>
+        /// <param name="account"></param>
+        /// <param name="command">mv NNESWWW</param>
+        /// <returns></returns>
+        public abstract bool PlanUseSkill(string command, SukaLambdaEngine vm);
 
         /// <summary>
         /// Write arbitrary codes in a inherited class overriding <see cref="Execute"/>
@@ -98,41 +105,75 @@ namespace sukalambda
 
     public class DummyVMSkillOnGameStart : Skill
     {
-        public DummyVMSkillOnGameStart(Character owner) : base(owner) { }
+        public DummyVMSkillOnGameStart() : base(PRODUCTION_CONFIG.dummyVm) { }
         public override List<NumericEffect> Execute(SkillExecution skillExecution, SukaLambdaEngine vm, object[]? metaArgs) => new List<NumericEffect>();
         public override SkillExecution PlanUseSkill(Character fromCharacter, List<Character> plannedTargets, SukaLambdaEngine vm, object[]? metaArgs = null) => new(new DummyVMCharacter(), this, new Character[] { }, metaArgs);
+        public override bool PlanUseSkill(string command, SukaLambdaEngine vm) { throw new InvalidOperationException("This is a dummy skill commanded by the game itself"); }
     }
     public class DummyVMSkillOnRoundStart : Skill
     {
-        public DummyVMSkillOnRoundStart(Character owner) : base(owner) { }
+        public DummyVMSkillOnRoundStart() : base(PRODUCTION_CONFIG.dummyVm) { }
         public override List<NumericEffect> Execute(SkillExecution skillExecution, SukaLambdaEngine vm, object[]? metaArgs) => new List<NumericEffect>();
         public override SkillExecution PlanUseSkill(Character fromCharacter, List<Character> plannedTargets, SukaLambdaEngine vm, object[]? metaArgs = null) => new(new DummyVMCharacter(), this, new Character[] { }, metaArgs);
+        public override bool PlanUseSkill(string command, SukaLambdaEngine vm) { throw new InvalidOperationException("This is a dummy skill commanded by the game itself"); }
     }
     public class DummyVMSkillOnRoundEnd : Skill
     {
-        public DummyVMSkillOnRoundEnd(Character owner) : base(owner) { }
+        public DummyVMSkillOnRoundEnd() : base(PRODUCTION_CONFIG.dummyVm) { }
         public override List<NumericEffect> Execute(SkillExecution skillExecution, SukaLambdaEngine vm, object[]? metaArgs) => new List<NumericEffect>();
         public override SkillExecution PlanUseSkill(Character fromCharacter, List<Character> plannedTargets, SukaLambdaEngine vm, object[]? metaArgs = null) => new(new DummyVMCharacter(), this, new Character[] { }, metaArgs);
+        public override bool PlanUseSkill(string command, SukaLambdaEngine vm) { throw new InvalidOperationException("This is a dummy skill commanded by the game itself"); }
     }
     public class DummyVMSkillOnGameEnd : Skill
     {
-        public DummyVMSkillOnGameEnd(Character owner) : base(owner) { }
+        public DummyVMSkillOnGameEnd() : base(PRODUCTION_CONFIG.dummyVm) { }
         public override List<NumericEffect> Execute(SkillExecution skillExecution, SukaLambdaEngine vm, object[]? metaArgs) => new List<NumericEffect>();
-        public override SkillExecution PlanUseSkill(Character fromCharacter, List<Character> plannedTargets, SukaLambdaEngine vm, object[]? metaArgs = null) => new(new DummyVMCharacter(), this, new Character[] { }, metaArgs);
+        public override SkillExecution PlanUseSkill(Character fromCharacter, List<Character> plannedTargets, SukaLambdaEngine vm, object[]? metaArgs = null) => new(PRODUCTION_CONFIG.dummyVm, this, new Character[] { }, metaArgs);
+        public override bool PlanUseSkill(string command, SukaLambdaEngine vm) { throw new InvalidOperationException("This is a dummy skill commanded by the game itself"); }
     }
     /// <summary>
     /// Used for <see cref="MetaEffect"/> triggered by <see cref="MapBlock"/>
     /// </summary>
     public class DummyMapSkill : Skill
     {
-        public DummyMapSkill(Character owner) : base(owner) { }
+        public DummyMapSkill() : base(PRODUCTION_CONFIG.dummyMap) { }
         public override List<NumericEffect> Execute(SkillExecution skillExecution, SukaLambdaEngine vm, object[]? metaArgs) => new List<NumericEffect>();
-        public override SkillExecution PlanUseSkill(Character fromCharacter, List<Character> plannedTargets, SukaLambdaEngine vm, object[]? metaArgs = null) => new(new DummyMapCharacter(), this, new Character[] { }, metaArgs);
+        public override SkillExecution PlanUseSkill(Character fromCharacter, List<Character> plannedTargets, SukaLambdaEngine vm, object[]? metaArgs = null) => new(PRODUCTION_CONFIG.dummyMap, this, new Character[] { }, metaArgs);
+        public override bool PlanUseSkill(string command, SukaLambdaEngine vm) { throw new InvalidOperationException("This is a dummy skill commanded by the map itself"); }
     }
     public class MoveSkill : Skill
     {
         public MoveSkill(Character owner) : base(owner) { }
-        public override List<NumericEffect> Execute(SkillExecution skillExecution, SukaLambdaEngine vm, object[]? metaArgs) => new List<NumericEffect>();
+        public override List<NumericEffect> Execute(SkillExecution skillExecution, SukaLambdaEngine vm, object[]? metaArgs)
+        {
+            if (vm.map == null || metaArgs == null) return new List<NumericEffect>();
+            vm.map.CharacterMove(skillExecution.fromCharacter,
+                (Heading[])metaArgs, Enumerable.Repeat((ushort)1, metaArgs.Length).ToArray());
+            return new List<NumericEffect>();
+        }
         public override SkillExecution PlanUseSkill(Character fromCharacter, List<Character> plannedTargets, SukaLambdaEngine vm, object[]? metaArgs = null) => new(fromCharacter, this, new Character[] { }, metaArgs);
+        
+        [InGameCommand("mv", @"^[↑↓←→NSWEnsweUDLRudlr]+$",
+            "`mv NNESWWW` for moving 2 blks up, 1 right, 1 down, 3 left")]
+        public override bool PlanUseSkill(string command, SukaLambdaEngine vm)
+        {
+            if (owner.altitude != Altitude.Surface) throw new NotImplementedException();
+            if (vm.map == null) return false;
+            Tuple<ushort, ushort>? position = vm.map.CharacterPosition(owner);
+            if (position == null) return false;
+            List<Heading> plannedMove = new();
+            foreach (char c in command)
+                switch (c)
+                {
+                    case '↑': case 'N': case 'n': case 'U': case 'u':  plannedMove.Add(new Heading(HeadingDirection.Up)); break;
+                    case '→': case 'E': case 'e': case 'R': case 'r':  plannedMove.Add(new Heading(HeadingDirection.Right)); break;
+                    case '↓': case 'S': case 's': case 'D': case 'd':  plannedMove.Add(new Heading(HeadingDirection.Down)); break;
+                    case '←': case 'W': case 'w': case 'L': case 'l':  plannedMove.Add(new Heading(HeadingDirection.Left)); break;
+                    default: break;
+                }
+            vm.RemoveSkillOfCharacterAndType(owner, this);
+            vm.PrepareSkill(PlanUseSkill(owner, new(), vm, plannedMove.ToArray()));
+            return true;
+        }
     }
 }

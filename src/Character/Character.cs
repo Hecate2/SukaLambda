@@ -78,6 +78,7 @@ namespace sukalambda
 
     public abstract class Character : IRenderText
     {
+        public string accountId { get; init; }
         public List<Skill> skills { get; set; } = new();
         /// <summary>
         /// Call <see cref="SukaLambdaEngine.RemoveCharacter"/>!
@@ -89,7 +90,14 @@ namespace sukalambda
         public CharacterData persistedStatus { get; set; }
         public NumericStatus statusCommitted { get; private set; }
         public NumericStatus statusTemporary { get; set; }
-        public Alignment? defaultAlignment = null;
+        public Alignment? alignment = null;
+
+        // Typically for flying units
+        public Altitude altitude = Altitude.Surface;  // on the ground by default
+        public Dictionary<Altitude, ulong> minSpeedAbs = new()
+        {
+            { Altitude.Surface, 0 },  // Other altitudes are not supported by default!
+        };
 
         private void LoadFromDatabase(string accountId, string characterName)
         {
@@ -132,6 +140,7 @@ namespace sukalambda
 
         public Character(string accountId, string? characterName = null)
         {
+            this.accountId = accountId;
             if (characterName == null)  characterName = this.GetType().Name;
             //LoadFromDatabase(accountId, characterName);
         }

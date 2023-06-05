@@ -6,6 +6,12 @@ namespace sukalambda
     {
         public const string DATABASE_PATH = "./SukaLambda.db3";
         public static PersistenceDbContext conn = new();
+        public static DummyVMCharacter dummyVm = new();
+        public static DummyMapCharacter dummyMap = new();
+        public static DummyVMSkillOnGameStart gameStart = new();
+        public static DummyVMSkillOnRoundStart roundStart = new();
+        public static DummyVMSkillOnRoundEnd roundEnd = new();
+        public static DummyVMSkillOnGameEnd gameEnd = new();
         public const uint MAX_ROUNDS = 128;
         public const uint MAX_SKILLS_IN_SINGLE_ROUND = 128;
         public const uint MAX_NUMERIC_EFFECTS_IN_SINGLE_SKILL = 1024;
@@ -38,6 +44,9 @@ namespace sukalambda
             public string PopLog(LogLevel level) => logs.Remove(level, out string? value) ? value : "";
         }
 
+        public CommandRouter commandRouter { get; init; }
+        public Semaphore semaphore = new(0, 1);
+
         public int timeStarted = DateTime.Now.Second;
         public Random rand { get; init; }
         public class Round : List<SkillExecution> { }
@@ -51,63 +60,96 @@ namespace sukalambda
         public Map? map;
         public LogCollector logCollector = new();
 
-        public DummyVMCharacter dummyVmCharacter = new();
-
         /// <param name="map">For a fully-featured game, do not hurry to put a map here.
         /// First initialize <see cref="SukaLambdaEngine"/> without <see cref="Map"/>.
         /// Then initialize a map along with its <see cref="MapBlock"/>s.
         /// </param>
-        public SukaLambdaEngine(CONFIG? config=null, Map? map = null)
+        public SukaLambdaEngine(CommandRouter commandRouter, Map? map = null)
         {
             rand = new(timeStarted);
+            this.commandRouter = commandRouter;
+            commandRouter.vm = this;
             this.map = map;
             if (map != null) map.vm = this;
         }
         public void SetMap(Map map)
         {
+            semaphore.WaitOne(5000);
+            if (this.map != null) map.vm = null;
             this.map = map; map.vm = this;
+            semaphore.Release();
         }
 
-        public void AddCharacter(Character character, ushort x, ushort y, Heading heading, Alignment alignment)
+        public void AddCharacter(Character character, ushort x, ushort y, Heading heading, Alignment? alignment=null)
         {
             if (map == null) throw new InvalidOperationException("Map is null!");
+            semaphore.WaitOne(5000);
+            commandRouter.RegisterCommandsForCharacter(character);
             characters[character.persistedStatus.id] = character;
-            map.AddCharacter(character, x, y, heading, alignment);
+            if (alignment != null) character.alignment = alignment;
+            map.AddCharacter(character, x, y, heading, alignment ?? character.alignment);
             character.OnAddToMap(this);
+            semaphore.Release();
         }
 
-        public void AddCharacter(Character character, Alignment alignment)
+        public void AddCharacter(Character character, Alignment? alignment = null)
         {
+            if (map != null) throw new InvalidOperationException("Map had been initialized!");
+            semaphore.WaitOne(5000);
+            commandRouter.RegisterCommandsForCharacter(character);
+            if (alignment != null) character.alignment = alignment;
             characters[character.persistedStatus.id] = character;
+            semaphore.Release();
         }
 
         public void RemoveCharacter(Character character)
         {
+            semaphore.WaitOne(5000);
             //characters.Remove(character.id);
+            commandRouter.UnregisterCommandsForCharacter(character);
             map?.RemoveCharacter(character);
             character.OnRemoveFromMap(this);
             character.removedFromMap = true;
+            semaphore.Release();
         }
 
         public void PrepareSkill(SkillExecution execution)
         {
+            semaphore.WaitOne(500);
+            if (rounds[currentRoundPointer] == null) rounds[currentRoundPointer] = new();
             rounds[currentRoundPointer].Add(execution);
+            semaphore.Release();
+        }
+
+        public void RemoveSkillOfCharacterAndType(Character character, Skill? type=null, uint roundBias=0)
+        {
+            semaphore.WaitOne(500);
+            Round round = rounds[currentRoundPointer + roundBias];
+            foreach (SkillExecution execution in round)
+                if (execution.fromCharacter == character && (type == null || execution.skill.GetType() == type.GetType()))
+                    round.Remove(execution);
+            semaphore.Release();
         }
 
         public void AddEffectToRound(MetaEffect effect, uint roundBias=0)
         {
+            semaphore.WaitOne(500);
             if (currentRoundPointer + roundBias < PRODUCTION_CONFIG.MAX_ROUNDS)
                 effectsByRound[currentRoundPointer + roundBias].Add(effect);
+            semaphore.Release();
         }
 
         public void AddEternalEffect(MetaEffect effect)
         {
+            semaphore.WaitOne(500);
             for (uint i = currentRoundPointer; i < PRODUCTION_CONFIG.MAX_ROUNDS; ++i)
                 effectsByRound[i].Add(effect);
+            semaphore.Release();
         }
 
         public void ExecuteRound()
         {
+            semaphore.WaitOne(5000);
             foreach (var kvp in characters)
                 kvp.Value.statusTemporary = kvp.Value.statusCommitted.Clone();
             if (currentRoundPointer == 0)  OnStartGame();
@@ -131,26 +173,27 @@ namespace sukalambda
             // TODO: some baseline codes to judge end of game without map
             if (map?.JudgeEndGame(this) == true || ++currentRoundPointer >= PRODUCTION_CONFIG.MAX_ROUNDS)
                 OnEndGame();
+            semaphore.Release();
         }
 
         private void OnStartRound()
         {
-            foreach (NumericEffect effect in new DummyVMSkillOnRoundStart(dummyVmCharacter).PlanUseSkill(dummyVmCharacter, new(), this).Execute(this))
+            foreach (NumericEffect effect in PRODUCTION_CONFIG.roundStart.PlanUseSkill(PRODUCTION_CONFIG.dummyVm, new(), this).Execute(this))
                 effect.target.CommitNumericEffect(effect);
         }
         private void OnEndRound()
         {
-            foreach (NumericEffect effect in new DummyVMSkillOnRoundEnd(dummyVmCharacter).PlanUseSkill(dummyVmCharacter, new(), this).Execute(this))
+            foreach (NumericEffect effect in PRODUCTION_CONFIG.roundEnd.PlanUseSkill(PRODUCTION_CONFIG.dummyVm, new(), this).Execute(this))
                 effect.target.CommitNumericEffect(effect);
         }
         private void OnStartGame()
         {
-            foreach (NumericEffect effect in new DummyVMSkillOnGameStart(dummyVmCharacter).PlanUseSkill(dummyVmCharacter, new(), this).Execute(this))
+            foreach (NumericEffect effect in PRODUCTION_CONFIG.gameStart.PlanUseSkill(PRODUCTION_CONFIG.dummyVm, new(), this).Execute(this))
                 effect.target.CommitNumericEffect(effect);
         }
         private void OnEndGame()
         {
-            foreach (NumericEffect effect in new DummyVMSkillOnGameEnd(dummyVmCharacter).PlanUseSkill(dummyVmCharacter, new(), this).Execute(this))
+            foreach (NumericEffect effect in PRODUCTION_CONFIG.gameEnd.PlanUseSkill(PRODUCTION_CONFIG.dummyVm, new(), this).Execute(this))
                 effect.target.CommitNumericEffect(effect);
             foreach (Character character in characters.Values)
                 character.PersistEarnings();

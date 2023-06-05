@@ -37,6 +37,10 @@ namespace sukalambda
         public ushort y { get; init; }
         public SukaLambdaEngine? vm { get; set; }  // You can do something when the vm is set
         public List<MetaEffect> metaEffects = new();
+        public Dictionary<Altitude, ushort> mobilityCost = new()
+        {
+            {Altitude.Underwater, 100},{Altitude.Surface, 1},{Altitude.Air, 0},{Altitude.Space, 0},
+        };
         public MapBlock(ushort x, ushort y, SukaLambdaEngine? vm)
         {
             this.x = x;  this.y = y;
@@ -80,6 +84,7 @@ namespace sukalambda
         public Guid characterID { get; init; }
         public ushort positionX { get; set; }
         public ushort positionY { get; set; }
+        //public short altitude { get; set; }
         public ushort heading { get; set; }
         public ushort? alignment { get; set; }  // 阵营
         public bool removed { get; set; }  // whether the character had been removed from the map
