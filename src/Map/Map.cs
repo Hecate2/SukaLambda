@@ -111,7 +111,7 @@ namespace sukalambda
     /// </summary>
     public abstract class Map : IRenderText
     {
-        public string basicBlockAsText = "□";
+        public string basicBlockAsText = "口";
         public string databasePath { get; init; }
         public GameDbContext conn;
         private SukaLambdaEngine? _vm;
@@ -147,9 +147,9 @@ namespace sukalambda
             this.height = height;
         }
 
-        public void InsertMapBlock(ushort x, ushort y, MapBlock mapBlock)
+        public void InsertMapBlock(MapBlock mapBlock)
         {
-            blocks[new Tuple<ushort, ushort>(x, y)] = mapBlock;
+            blocks[new Tuple<ushort, ushort>(mapBlock.x, mapBlock.x)] = mapBlock;
             mapBlock.vm = vm;
         }
         public void RemoveMapBlock(ushort x, ushort y)
@@ -353,10 +353,20 @@ namespace sukalambda
 
             string finalText = "";
             foreach (string[] row in wholeMap)
+                for (int i = 0; i < basicBlockOccupiesColumns; i++)
+                {
+                    if (i == basicBlockOccupiesColumns / 2)
+                        finalText += ('A' + i);
+                    else
+                        finalText += ' ';
+                }
+            for (int rowIndex = 0; rowIndex < wholeMap.Length; ++rowIndex)
                 for (int i = 0; i < basicBlockOccupiesRows; i++)
                 {
-                    foreach (string block in row)
+                    foreach (string block in wholeMap[rowIndex])
                         finalText += block.Split('\n')[i];
+                    if (i == basicBlockOccupiesRows / 2)
+                        finalText += $"{rowIndex}";
                     finalText += '\n';
                 }
             return finalText.TrimEnd('\n');
