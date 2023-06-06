@@ -85,7 +85,7 @@ namespace sukalambda
         public Func<NumericEffect?, SukaLambdaEngine, bool> TriggeringCondition { get; init; }
         public Func<NumericEffect?, SukaLambdaEngine, NumericEffect?> Execute { get; init; }
         public MetaEffect(Character fromCharacter, SkillExecution fromSkillExecution, HashSet<Character> toCharacters, short priority, object[] metaArgs,
-            Func<NumericEffect?, SukaLambdaEngine, bool> triggeringCondition, Func<NumericEffect, SukaLambdaEngine, NumericEffect> execute)
+            Func<NumericEffect?, SukaLambdaEngine, bool> triggeringCondition, Func<NumericEffect?, SukaLambdaEngine, NumericEffect?> execute)
         {
             this.fromCharacter=fromCharacter;
             this.fromSkillExecution=fromSkillExecution;
@@ -99,18 +99,18 @@ namespace sukalambda
 
     public abstract class ActiveEffect : MetaEffect
     {
-        public ActiveEffect(Character fromCharacter, SkillExecution fromSkillExecution, HashSet<Character> toCharacters, short priority, object[] metaArgs, Func<NumericEffect, SukaLambdaEngine, NumericEffect> execute)
+        public ActiveEffect(Character fromCharacter, SkillExecution fromSkillExecution, HashSet<Character> toCharacters, short priority, object[] metaArgs, Func<NumericEffect?, SukaLambdaEngine, NumericEffect?> execute)
             : base(fromCharacter, fromSkillExecution, toCharacters, priority, metaArgs,
-            (effect, vm) => effect.skillExecution.fromCharacter == fromCharacter ,
+            (effect, vm) => effect?.skillExecution.fromCharacter == fromCharacter ,
             execute)
         { }
     }
 
     public abstract class PassiveEffect : MetaEffect
     {
-        public PassiveEffect(Character fromCharacter, SkillExecution fromSkillExecution, HashSet<Character> toCharacters, short priority, object[] metaArgs, Func<NumericEffect, SukaLambdaEngine, NumericEffect> execution)
+        public PassiveEffect(Character fromCharacter, SkillExecution fromSkillExecution, HashSet<Character> toCharacters, short priority, object[] metaArgs, Func<NumericEffect?, SukaLambdaEngine, NumericEffect?> execution)
             : base(fromCharacter, fromSkillExecution, toCharacters, priority, metaArgs,
-            (effect, vm) => toCharacters.Contains(effect.target),
+            (effect, vm) => effect != null && toCharacters.Contains(effect.target),
             execution)
         { }
     }
