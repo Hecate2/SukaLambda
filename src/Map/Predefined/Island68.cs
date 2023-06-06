@@ -43,22 +43,22 @@
     public class Warehouse : MapBlock
     {
         public Warehouse(ushort x, ushort y, SukaLambdaEngine? vm = null) : base(x, y, vm) { }
-        public new string RenderAsText(Language lang) => "仓";
+        public new string RenderAsText(Language lang) => "🏠";
     }
 
     public class Forest : MapBlock
     {
         public Forest(ushort x, ushort y, SukaLambdaEngine? vm = null) : base(x, y, vm) { }
-        public new string RenderAsText(Language lang) => "森";
+        public new string RenderAsText(Language lang) => "🌲🌳"[(x+y+((y*3<vm?.map?.height) ? 1 : 0)) % 2].ToString();
     }
     public class Lawn : MapBlock
     {
         public Lawn(ushort x, ushort y, SukaLambdaEngine? vm = null) : base(x, y, vm) { }
-        public new string RenderAsText(Language lang) => "草";
+        public new string RenderAsText(Language lang) => "草";//"🌼🌻"[(x+1) % 2].ToString();
     }
     public class Water : MapBlock
     {
         public Water(ushort x, ushort y, SukaLambdaEngine? vm = null) : base(x, y, vm) { }
-        public new string RenderAsText(Language lang) => "草";
+        public new string RenderAsText(Language lang) => "水";
     }
 }
