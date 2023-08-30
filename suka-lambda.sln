@@ -7,6 +7,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SukaLambdaEngine", "src\Suk
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SukaLambdaEngineTests", "SukaLambdaEngineTests\SukaLambdaEngineTests.csproj", "{53F167B3-5552-4B81-B3C0-E5F72E3E2E66}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "telegram", "telegram\telegram.csproj", "{B401B73C-6DBF-4641-88E3-59EECBC197A2}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -21,6 +23,10 @@ Global
 		{53F167B3-5552-4B81-B3C0-E5F72E3E2E66}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{53F167B3-5552-4B81-B3C0-E5F72E3E2E66}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{53F167B3-5552-4B81-B3C0-E5F72E3E2E66}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B401B73C-6DBF-4641-88E3-59EECBC197A2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B401B73C-6DBF-4641-88E3-59EECBC197A2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B401B73C-6DBF-4641-88E3-59EECBC197A2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B401B73C-6DBF-4641-88E3-59EECBC197A2}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
