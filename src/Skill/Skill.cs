@@ -1,11 +1,10 @@
-﻿using Microsoft.EntityFrameworkCore;
-using System;
-using System.ComponentModel.DataAnnotations.Schema;
+﻿using System.ComponentModel.DataAnnotations;
 
 namespace sukalambda
 {
     public class SkillData
     {
+        [Key]
         public Guid characterId { get; init; }
         public string skillClassName { get; init; }
     }
@@ -74,6 +73,7 @@ namespace sukalambda
         public List<NumericEffect> Execute(SukaLambdaEngine vm)
         {
             vm.numericEffectsForSingleSkillExecution = new();
+            if (vm.effectsByRound[vm.currentRoundPointer] == null) vm.effectsByRound[vm.currentRoundPointer] = new();
             vm.metaEffectsForSingleSkillExecution = new(vm.effectsByRound[vm.currentRoundPointer]);
             HashSet<MetaEffect> executedMetaEffectsForThisSkill = new();
 
@@ -207,14 +207,14 @@ namespace sukalambda
         
         [InGameCommand("mv", @"^[↑↓←→NSWEnsweUDLRudlr]+$",
             "`mv NNESWWW` for moving 2 blks up, 1 right, 1 down, 3 left")]
-        public override bool PlanUseSkill(string command, SukaLambdaEngine vm)
+        public override bool PlanUseSkill(string commandBody, SukaLambdaEngine vm)
         {
             if (owner.altitude != Altitude.Surface) throw new NotImplementedException();
             if (vm.map == null) return false;
             Tuple<ushort, ushort>? position = vm.map.CharacterPosition(owner);
             if (position == null) return false;
             List<Heading> plannedMove = new();
-            foreach (char c in command)
+            foreach (char c in commandBody)
                 switch (c)
                 {
                     case '↑': case 'N': case 'n': case 'U': case 'u':  plannedMove.Add(new Heading(HeadingDirection.Up)); break;

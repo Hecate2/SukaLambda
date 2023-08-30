@@ -2,6 +2,14 @@
 {
     public class Island68 : Map
     {
+        [OutGameCommand("i68", "i68", "Start game on island 68")]
+        public static bool Start(string account, string command, RootController controller)
+        {
+            if (controller.vm != null)  return false;
+            SukaLambdaEngine vm = new(controller, map: new Island68($"file:{nameof(Island68)}?mode=memory&cache=shared"));
+            vm.AddCharacter(new Lakhesh(account), 0, 0, new Heading(HeadingDirection.E));
+            return true;
+        }
         public Island68(string databasePath, SukaLambdaEngine? vm = null) : base(databasePath, 1, 1, vm)
         {
             string generator = """

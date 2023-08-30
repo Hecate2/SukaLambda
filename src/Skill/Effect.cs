@@ -33,7 +33,7 @@ namespace sukalambda
         }
         public void AppendLog(MetaEffect effect, string log)
         {
-            if (logs.ContainsKey(effect)) logs[effect] = new List<string> { log }; else logs[effect].Append(log);
+            if (!logs.ContainsKey(effect)) logs[effect] = new List<string> { log }; else logs[effect].Append(log);
         }
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal string AppendLogsFromList(string finalLogs, List<string> logs)

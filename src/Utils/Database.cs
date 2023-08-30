@@ -4,7 +4,7 @@ namespace sukalambda
 {
     public class PersistenceDbContext : DbContext
     {
-        public string dbPath { get; } = PRODUCTION_CONFIG.DATABASE_PATH;
+        public string dbPath { get; } = CONFIG.DATABASE_PATH;
         public DbSet<AccountData> Accounts { get; set; }
         public DbSet<CharacterData> Characters { get; set; }
         public DbSet<SkillData> Skills { get; set; }

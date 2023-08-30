@@ -6,7 +6,7 @@ namespace SukaLambdaEngineTests
     public class MapTest
     {
         //public Island68 map = new($"file:{nameof(MapTest)}?mode=memory&cache=shared", 10, 10);
-        public Island68 map = new($"./{nameof(MapTest)}.db3", 10, 10);
+        public Island68 map = new($"./{nameof(MapTest)}.db3");
         Lakhesh c = new("hecate2");
 
         [TestInitialize]

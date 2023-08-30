@@ -33,33 +33,44 @@ namespace sukalambda
         public readonly
             Dictionary<string,  // account
             Dictionary<Character, 
-            Dictionary<string,  // command
-                Tuple<InGameCommand, Func<string, SukaLambdaEngine, bool>>>>> accountToInGameMethod = new();
+            Dictionary<string,  // command name
+                Tuple<InGameCommand,
+                    Func<string,  // command body
+                        SukaLambdaEngine, bool>>>>> accountToInGameMethod = new();
 
-        public static readonly Dictionary<string, Tuple<OutGameCommand, Func<string, bool>>> outGameMethod = new();
+        public readonly
+            Dictionary<string,  // command name
+                Tuple<OutGameCommand,
+                    Func<string,  // account
+                        string,   // command body
+                        RootController, bool>>> outGameMethod = new();
 
-        public SukaLambdaEngine? vm = null;
-        public static Regex leftSplitter = new(@"^(.*)\s+(.*)$");
+        public CommandRouter()
+        {
+            RegisterOutGameCommand();
+        }
 
-        public static void RegisterOutGameCommand()
+        public void RegisterOutGameCommand()
         {
             var assembly = Assembly.GetExecutingAssembly();
             foreach (Type type in assembly.GetTypes())
-                foreach (MethodInfo method in type.GetMethods(BindingFlags.Static))
+            {
+                foreach (MethodInfo method in type.GetMethods(BindingFlags.Public | BindingFlags.Static))
                 {
                     OutGameCommand? attribute = method.GetCustomAttribute<OutGameCommand>();
                     if (attribute is null) continue;
-                    outGameMethod[attribute.name] = new Tuple<OutGameCommand, Func<string, bool>>(
-                        attribute, method.CreateDelegate<Func<string, bool>>());
+                    outGameMethod[attribute.name] = new Tuple<OutGameCommand, Func<string, string, RootController, bool>>(
+                        attribute, method.CreateDelegate<Func<string, string, RootController, bool>>());
                 }
+            }
         }
 
-        public void ExecuteCommand(string account, string command, SukaLambdaEngine? vm = null)
+        public void ExecuteCommand(string account, string command, RootController controller)
         {
-            Match match = leftSplitter.Match(command);
-            if (!match.Success || match.Groups.Count < 2) return;
-            string commandName = match.Groups[0].Value;
-            string commandBody = match.Groups[1].Value;
+            string[] cmdSplitted = Regex.Split(command, @"\s+");
+            string commandName = cmdSplitted[0];
+            string commandBody = String.Join(" ", cmdSplitted[1..]);
+            SukaLambdaEngine? vm = controller.vm;
             if (accountToInGameMethod.ContainsKey(account) && accountToInGameMethod[account].Count > 0 && vm != null)
             {
                 foreach (var kvp in accountToInGameMethod[account])  // for all characters of this account
@@ -71,22 +82,25 @@ namespace sukalambda
                 }
             }
             if (outGameMethod.ContainsKey(commandName))
-                outGameMethod[commandName].Item2(commandBody);
+                outGameMethod[commandName].Item2(account, commandBody, controller);
         }
 
         public void RegisterCommandsForCharacter(Character character)
         {
             accountToInGameMethod.TryAdd(character.accountId, new());
             accountToInGameMethod[character.accountId].TryAdd(character, new());
-            MethodInfo[] methods = character.GetType().GetMethods(
-                BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static);
-            foreach (MethodInfo method in methods)
+            MethodInfo[] methods = new MethodInfo[] { };
+            foreach (Skill skill in character.skills)
             {
-                InGameCommand? attribute = method.GetCustomAttribute<InGameCommand>();
-                if (attribute is null) continue;
-                accountToInGameMethod[character.accountId][character][attribute.name] =
-                    new Tuple<InGameCommand, Func<string, SukaLambdaEngine, bool>>
-                    (attribute, method.CreateDelegate<Func<string, SukaLambdaEngine, bool>>(character));
+                methods = methods.Concat(skill.GetType().GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static)).ToArray();
+                foreach (MethodInfo method in methods)
+                {
+                    InGameCommand? attribute = method.GetCustomAttribute<InGameCommand>();
+                    if (attribute is null) continue;
+                    accountToInGameMethod[character.accountId][character][attribute.name] =
+                        new Tuple<InGameCommand, Func<string, SukaLambdaEngine, bool>>
+                        (attribute, method.CreateDelegate<Func<string, SukaLambdaEngine, bool>>(skill));
+                }
             }
         }
         public void UnregisterCommandsForCharacter(Character character)

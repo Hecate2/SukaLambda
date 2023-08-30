@@ -1,6 +1,4 @@
-﻿using System.Collections.Concurrent;
-
-namespace sukalambda
+﻿namespace sukalambda
 {
     public class CONFIG
     {
@@ -17,7 +15,14 @@ namespace sukalambda
         public const uint MAX_NUMERIC_EFFECTS_IN_SINGLE_SKILL = 1024;
         public const uint MAX_META_EFFECTS_IN_SINGLE_NUMERIC_EFFECT = 1024;
     }
-    public class PRODUCTION_CONFIG : CONFIG { }
+    public class PRODUCTION_CONFIG : CONFIG
+    {
+        public new const string DATABASE_PATH = "./SukaLambdaProduction.db3";
+    }
+    public class TEST_CONFIG : CONFIG
+    {
+        public new const string DATABASE_PATH = "./SukaLambdaTest.db3";
+    }
 
     /// <summary>
     /// <see cref="Round">: Priority queue; [SkillExecution (by a Character), SkillExecution (by a Character), ...]
@@ -35,16 +40,7 @@ namespace sukalambda
     /// </summary>
     public class SukaLambdaEngine
     {
-        public class LogCollector
-        {
-            public enum LogLevel { Trace, Debug, Info, Warn, Error, Fatal, Engine, Map, Character, Round, Skill, NumericEffect, MetaEffect }
-            internal readonly ConcurrentDictionary<LogLevel, string> logs = new();
-            public void Log(LogLevel level, string message) => logs.AddOrUpdate(level, message, (level, oldMessage) => oldMessage + message);
-            public string ViewLog(LogLevel level) => logs.TryGetValue(level, out string? value) ? value : "";
-            public string PopLog(LogLevel level) => logs.Remove(level, out string? value) ? value : "";
-        }
-
-        public CommandRouter commandRouter { get; init; }
+        public RootController rootController { get; init; }
         public Semaphore semaphore = new(0, 1);
 
         public int timeStarted = DateTime.Now.Second;
@@ -58,17 +54,16 @@ namespace sukalambda
         public List<NumericEffect> numericEffectsForSingleSkillExecution { get; set; } = new();
         public readonly Dictionary<Guid, Character> characters = new();
         public Map? map;
-        public LogCollector logCollector = new();
 
         /// <param name="map">For a fully-featured game, do not hurry to put a map here.
         /// First initialize <see cref="SukaLambdaEngine"/> without <see cref="Map"/>.
         /// Then initialize a map along with its <see cref="MapBlock"/>s.
         /// </param>
-        public SukaLambdaEngine(CommandRouter commandRouter, Map? map = null)
+        public SukaLambdaEngine(RootController rootController, Map? map = null)
         {
             rand = new(timeStarted);
-            this.commandRouter = commandRouter;
-            commandRouter.vm = this;
+            this.rootController = rootController;
+            rootController.vm = this;
             this.map = map;
             if (map != null) map.vm = this;
         }
@@ -84,7 +79,7 @@ namespace sukalambda
         {
             if (map == null) throw new InvalidOperationException("Map is null!");
             semaphore.WaitOne(5000);
-            commandRouter.RegisterCommandsForCharacter(character);
+            rootController.cmdRouter.RegisterCommandsForCharacter(character);
             characters[character.persistedStatus.id] = character;
             if (alignment != null) character.alignment = alignment;
             map.AddCharacter(character, x, y, heading, alignment ?? character.alignment);
@@ -96,7 +91,7 @@ namespace sukalambda
         {
             if (map != null) throw new InvalidOperationException("Map had been initialized!");
             semaphore.WaitOne(5000);
-            commandRouter.RegisterCommandsForCharacter(character);
+            rootController.cmdRouter.RegisterCommandsForCharacter(character);
             if (alignment != null) character.alignment = alignment;
             characters[character.persistedStatus.id] = character;
             semaphore.Release();
@@ -106,7 +101,7 @@ namespace sukalambda
         {
             semaphore.WaitOne(5000);
             //characters.Remove(character.id);
-            commandRouter.UnregisterCommandsForCharacter(character);
+            rootController.cmdRouter.UnregisterCommandsForCharacter(character);
             map?.RemoveCharacter(character);
             character.OnRemoveFromMap(this);
             character.removedFromMap = true;
@@ -124,6 +119,7 @@ namespace sukalambda
         public void RemoveSkillOfCharacterAndType(Character character, Skill? type=null, uint roundBias=0)
         {
             semaphore.WaitOne(500);
+            if (rounds[currentRoundPointer + roundBias] == null) rounds[currentRoundPointer + roundBias] = new();
             Round round = rounds[currentRoundPointer + roundBias];
             foreach (SkillExecution execution in round)
                 if (execution.fromCharacter == character && (type == null || execution.skill.GetType() == type.GetType()))

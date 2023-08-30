@@ -87,9 +87,9 @@ namespace sukalambda
         /// </summary>
         public bool removedFromMap { get; set; } = false;
 
-        public CharacterData persistedStatus { get; set; }
-        public NumericStatus statusCommitted { get; private set; }
-        public NumericStatus statusTemporary { get; set; }
+        public CharacterData persistedStatus { get; set; }  // state in database
+        public NumericStatus statusCommitted { get; internal set; }  // state when a round is finished
+        public NumericStatus statusTemporary { get; set; }  // state in a round
         public Alignment? alignment = null;
 
         // Typically for flying units

@@ -1,7 +1,10 @@
-﻿namespace sukalambda
+﻿using System.ComponentModel.DataAnnotations;
+
+namespace sukalambda
 {
     public class AccountData
     {
+        [Key]
         public string account { get; set; }
         public string nickname { get; set; }
         public List<Character> characters { get; } = new();
