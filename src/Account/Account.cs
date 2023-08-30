@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace sukalambda
 {
@@ -7,6 +8,7 @@ namespace sukalambda
         [Key]
         public string account { get; set; }
         public string nickname { get; set; }
+        [NotMapped]
         public List<Character> characters { get; } = new();
         public static void ChangeNickname(string account, string nickname)
         {
