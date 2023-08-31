@@ -41,7 +41,7 @@
     public class SukaLambdaEngine
     {
         public RootController rootController { get; init; }
-        public Semaphore semaphore = new(0, 1);
+        public Semaphore semaphore = new(1, 1);
 
         public int timeStarted = DateTime.Now.Second;
         public Random rand { get; init; }
