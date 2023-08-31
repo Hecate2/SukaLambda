@@ -149,7 +149,7 @@ namespace sukalambda
 
         public void InsertMapBlock(MapBlock mapBlock)
         {
-            blocks[new Tuple<ushort, ushort>(mapBlock.x, mapBlock.x)] = mapBlock;
+            blocks[new Tuple<ushort, ushort>(mapBlock.x, mapBlock.y)] = mapBlock;
             mapBlock.vm = vm;
         }
         public void RemoveMapBlock(ushort x, ushort y)
@@ -325,11 +325,17 @@ namespace sukalambda
             int basicBlockOccupiesColumns = basicBlockAsText.Count();
             int basicBlockOccupiesRows = basicBlockAsText.Count(ch => ch == '\n') + 1;
             string[] singleRow = Enumerable.Repeat(basicBlockAsText, width).ToArray();
-            string[][] wholeMap = Enumerable.Repeat(singleRow, height).ToArray();
+            string[][] wholeMap = new string[height][];
+            for (int rowIndex = 0; rowIndex < height; rowIndex++)
+            {
+                wholeMap[rowIndex] = new string[width];
+                singleRow.CopyTo(wholeMap[rowIndex], 0);
+            }
             foreach (var kvp in blocks)
             {
                 if (kvp.Key.Item1 >= width || kvp.Key.Item2 >= height) continue;
-                string text = kvp.Value.RenderAsText(lang);
+                dynamic block = kvp.Value;  // kvp.Value.RenderAsText(lang) returns "⚪"
+                string text = block.RenderAsText(lang);
                 if (text == "") continue;
                 if (text.Count(ch => ch == '\n') == 0)
                     text = string.Join("\n", Enumerable.Repeat(text, basicBlockOccupiesRows));
@@ -355,21 +361,20 @@ namespace sukalambda
             }
 
             string finalText = "";
-            foreach (string[] row in wholeMap)
+            for (int column = 0; column < wholeMap[0].Length; column++)
                 for (int i = 0; i < basicBlockOccupiesColumns; i++)
-                {
                     if (i == basicBlockOccupiesColumns / 2)
-                        finalText += ('A' + i);
+                        finalText += (char)('Ａ' + column);  // full-width letter
                     else
                         finalText += ' ';
-                }
+            finalText += "\n";
             for (int rowIndex = 0; rowIndex < wholeMap.Length; ++rowIndex)
                 for (int i = 0; i < basicBlockOccupiesRows; i++)
                 {
                     foreach (string block in wholeMap[rowIndex])
                         finalText += block.Split('\n')[i];
                     if (i == basicBlockOccupiesRows / 2)
-                        finalText += $"{rowIndex}";
+                        finalText += $" {rowIndex}";
                     finalText += '\n';
                 }
             return finalText.TrimEnd('\n');

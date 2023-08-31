@@ -34,7 +34,7 @@
             森森口口口口口口井森森森
             森森森森森森森口口口口口
             """;
-            string[] rows = generator.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+            string[] rows = generator.Replace("\r", "").Split('\n', StringSplitOptions.RemoveEmptyEntries);
             this.height = (ushort)rows.Count();
             this.width = (ushort)rows[0].Count();
 
@@ -48,19 +48,20 @@
                         case '水':  InsertMapBlock(new Water((ushort)columnIndex, (ushort)rowIndex)); break;
                         case '口':  default: break;
                     }
+            ;
         }
     }
 
     public class Warehouse : MapBlock
     {
         public Warehouse(ushort x, ushort y, SukaLambdaEngine? vm = null) : base(x, y, vm) { }
-        public new string RenderAsText(Language lang) => "🏠";
+        public new string RenderAsText(Language lang) => "仓";
     }
 
     public class Forest : MapBlock
     {
         public Forest(ushort x, ushort y, SukaLambdaEngine? vm = null) : base(x, y, vm) { }
-        public new string RenderAsText(Language lang) => "🌲🌳"[(x+y+((y*3<vm?.map?.height) ? 1 : 0)) % 2].ToString();
+        public new string RenderAsText(Language lang) => "森林"[(x+y+((y*3<vm?.map?.height) ? 1 : 0)) % 2].ToString();
     }
     public class Lawn : MapBlock
     {
