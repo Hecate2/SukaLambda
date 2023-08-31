@@ -5,7 +5,7 @@
         public Lakhesh(string accountId) : base(accountId)
         {
             this.persistedStatus = new CharacterData { id = Guid.NewGuid(), accountId = accountId, characterName = nameof(Lakhesh), experience=0 };
-            this.statusCommitted = new() { HitPoint = 10, Mobility = 3 };
+            this.statusCommitted = new() { HitPoint = 10, Mobility = 2 };
             this.skills.Add(new MoveSkill(this));
         }
 

@@ -211,7 +211,7 @@ namespace sukalambda
         {
             if (owner.altitude != Altitude.Surface) throw new NotImplementedException();
             if (vm.map == null) return false;
-            Tuple<ushort, ushort>? position = vm.map.CharacterPosition(owner);
+            Tuple<ushort, ushort>? position = vm.map.CharacterPosition(owner, out _);
             if (position == null) return false;
             List<Heading> plannedMove = new();
             foreach (char c in commandBody)

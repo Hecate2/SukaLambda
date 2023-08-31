@@ -151,7 +151,7 @@
             if (currentRoundPointer == 0)  OnStartGame();
             OnStartRound();
             HashSet<SkillExecution> executed = new();
-            for (int currentSkillPointer = 0; currentRoundPointer < rounds[currentRoundPointer].Count; ++currentSkillPointer)
+            for (int currentSkillPointer = 0; currentSkillPointer < rounds[currentRoundPointer].Count; ++currentSkillPointer)
             {
                 rounds[currentRoundPointer].Sort((l, r) =>
                     l.priority != r.priority ? l.priority.CompareTo(r.priority) :

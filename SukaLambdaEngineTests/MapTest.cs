@@ -15,7 +15,7 @@ namespace SukaLambdaEngineTests
             map.conn.Database.EnsureDeleted();
             map.conn.Database.EnsureCreated();
             map.AddCharacter(c, 1, 2, HeadingDirection.East, Alignment.Blue);
-            Assert.AreEqual(map.CharacterPosition(c), new Tuple<ushort, ushort>(1, 2));
+            Assert.AreEqual(map.CharacterPosition(c, out _), new Tuple<ushort, ushort>(1, 2));
 
             // AddDuplicatingCharacterAndOnOccupiedPosition
             try { map.AddCharacter(c, 0, 3, HeadingDirection.East, Alignment.Blue); } catch (ArgumentException) { }
@@ -23,8 +23,8 @@ namespace SukaLambdaEngineTests
 
             // AddDuplicatingCharacterAndOnOccupiedPosition
             map.RemoveCharacter(c);
-            Assert.AreEqual(map.CharacterPosition(c), null);
-            Assert.AreEqual(map.CharacterPositionIncludingRemoved(c), new Tuple<ushort, ushort>(1, 2));
+            Assert.AreEqual(map.CharacterPosition(c, out _), null);
+            Assert.AreEqual(map.CharacterPositionIncludingRemoved(c, out _), new Tuple<ushort, ushort>(1, 2));
             try { map.AddCharacter(c, 1, 2, HeadingDirection.East); } catch (ArgumentException) { }
             map.AddCharacter(new Lakhesh("hecate3"), 1, 2, HeadingDirection.East);
         }
