@@ -3,7 +3,7 @@
     public class Island68 : Map
     {
         [OutGameCommand("i68", "i68", "Start game on island 68")]
-        public static bool Start(string account, string command, RootController controller)
+        public static bool Start(string account, string commandBody, RootController controller)
         {
             if (controller.vm != null)  return false;
             Map map = new Island68($"file:{nameof(Island68)}?mode=memory&cache=shared");

@@ -43,10 +43,12 @@ namespace sukalambda
         /// </summary>
         /// <param name="metaArgs"></param>
         /// <returns>The planned numeric effects. The length can be shorter than <see cref="SkillExecution.desiredTargets"/></returns>
-        public abstract List<NumericEffect> Execute(SkillExecution skillExecution, SukaLambdaEngine vm, object[]? metaArgs=null);
-        public string WriteFinalLog(NumericEffect effect, SukaLambdaEngine vm) => $"Fantastic logs from skill of !";
+        public abstract List<NumericEffect> Execute(SkillExecution skillExecution, SukaLambdaEngine vm, object[]? metaArgs = null);
+        public abstract string WriteLogAtStart(SukaLambdaEngine vm);
+        public abstract string WriteLogForEffect(NumericEffect effect, SukaLambdaEngine vm);
+        public abstract string WriteLogAtEnd(SukaLambdaEngine vm);
         /// <returns>Just the skill name in different languages</returns>
-        public string RenderAsText(Language lang) => "A fantastic skill !";
+        public string RenderAsText(Language lang) => "A fantastic skill!";
     }
 
     /// <summary>
@@ -72,6 +74,8 @@ namespace sukalambda
         }
         public List<NumericEffect> Execute(SukaLambdaEngine vm)
         {
+            vm.rootController.logCollector.Log(LogCollector.LogType.Skill, skill.WriteLogAtStart(vm));
+
             vm.numericEffectsForSingleSkillExecution = new();
             if (vm.effectsByRound[vm.currentRoundPointer] == null) vm.effectsByRound[vm.currentRoundPointer] = new();
             vm.metaEffectsForSingleSkillExecution = new(vm.effectsByRound[vm.currentRoundPointer]);
@@ -79,7 +83,7 @@ namespace sukalambda
 
             // Before exeuction of skill: execute MetaEffects of priority < 0
             int metaEffectPointerBeforeSkill = 0;
-            for ( ; metaEffectPointerBeforeSkill < vm.metaEffectsForSingleSkillExecution.Count; ++metaEffectPointerBeforeSkill)
+            for (; metaEffectPointerBeforeSkill < vm.metaEffectsForSingleSkillExecution.Count; ++metaEffectPointerBeforeSkill)
             {
                 vm.metaEffectsForSingleSkillExecution.Sort((l, r) =>
                     l.priority != r.priority ? l.priority.CompareTo(r.priority) :
@@ -101,10 +105,10 @@ namespace sukalambda
             // Execute our skill!
             vm.numericEffectsForSingleSkillExecution =
                 vm.numericEffectsForSingleSkillExecution.Concat(skill.Execute(this, vm, metaArgs)).ToList();
-            
+
             // Modify the resulting NumericEffects, or set to null to let the effect miss the target
             HashSet<NumericEffect> executedNumericEffects = new();
-            for (int numericEffectPointer=0; numericEffectPointer < vm.numericEffectsForSingleSkillExecution.Count; ++numericEffectPointer)
+            for (int numericEffectPointer = 0; numericEffectPointer < vm.numericEffectsForSingleSkillExecution.Count; ++numericEffectPointer)
             {
                 if (numericEffectPointer > PRODUCTION_CONFIG.MAX_NUMERIC_EFFECTS_IN_SINGLE_SKILL) throw new StackOverflowException("Too many NumericEffects! Probably too many targets.");
                 NumericEffect validNumericEffect = vm.numericEffectsForSingleSkillExecution[numericEffectPointer];
@@ -115,7 +119,7 @@ namespace sukalambda
                 // Do not use foreach, because MetaEffect can add new MetaEffects.
                 HashSet<MetaEffect> executedMetaEffectsForThisTarget = new();
                 vm.metaEffectsForSingleSkillExecution = new(vm.effectsByRound[vm.currentRoundPointer]);
-                for (int metaEffectPointer=metaEffectPointerBeforeSkill; metaEffectPointer < vm.metaEffectsForSingleSkillExecution.Count; ++metaEffectPointer)
+                for (int metaEffectPointer = metaEffectPointerBeforeSkill; metaEffectPointer < vm.metaEffectsForSingleSkillExecution.Count; ++metaEffectPointer)
                 {
                     if (metaEffectPointer > PRODUCTION_CONFIG.MAX_META_EFFECTS_IN_SINGLE_NUMERIC_EFFECT) throw new StackOverflowException("Too many MetaEffects on a single NumericEffect!");
                     if (vm.metaEffectsForSingleSkillExecution[metaEffectPointer].priority < 0) continue;
@@ -145,8 +149,12 @@ namespace sukalambda
                         }
                     }
                 }
-                skill.WriteFinalLog(validNumericEffect, vm);
+                string log = skill.WriteLogForEffect(validNumericEffect, vm);
+                vm.rootController.logCollector.Log(LogCollector.LogType.Skill, log);
             }
+
+            vm.rootController.logCollector.Log(LogCollector.LogType.Skill, skill.WriteLogAtEnd(vm));
+
             return vm.numericEffectsForSingleSkillExecution;
         }
     }
@@ -158,6 +166,9 @@ namespace sukalambda
         public override List<NumericEffect> Execute(SkillExecution skillExecution, SukaLambdaEngine vm, object[]? metaArgs) => new List<NumericEffect>();
         public override SkillExecution PlanUseSkill(Character fromCharacter, List<Character> plannedTargets, SukaLambdaEngine vm, object[]? metaArgs = null) => new(new DummyVMCharacter(), this, new Character[] { }, metaArgs);
         public override bool PlanUseSkill(string command, SukaLambdaEngine vm) { throw new InvalidOperationException("This is a dummy skill commanded by the game itself"); }
+        public override string WriteLogAtStart(SukaLambdaEngine vm) => "Game started.";
+        public override string WriteLogForEffect(NumericEffect effect, SukaLambdaEngine vm) => "";
+        public override string WriteLogAtEnd(SukaLambdaEngine vm) => "";
     }
     public class DummyVMSkillOnRoundStart : Skill
     {
@@ -166,6 +177,9 @@ namespace sukalambda
         public override List<NumericEffect> Execute(SkillExecution skillExecution, SukaLambdaEngine vm, object[]? metaArgs) => new List<NumericEffect>();
         public override SkillExecution PlanUseSkill(Character fromCharacter, List<Character> plannedTargets, SukaLambdaEngine vm, object[]? metaArgs = null) => new(new DummyVMCharacter(), this, new Character[] { }, metaArgs);
         public override bool PlanUseSkill(string command, SukaLambdaEngine vm) { throw new InvalidOperationException("This is a dummy skill commanded by the game itself"); }
+        public override string WriteLogAtStart(SukaLambdaEngine vm) => $"Round {vm.currentRoundPointer} started.";
+        public override string WriteLogForEffect(NumericEffect effect, SukaLambdaEngine vm) => "";
+        public override string WriteLogAtEnd(SukaLambdaEngine vm) => "";
     }
     public class DummyVMSkillOnRoundEnd : Skill
     {
@@ -174,6 +188,9 @@ namespace sukalambda
         public override List<NumericEffect> Execute(SkillExecution skillExecution, SukaLambdaEngine vm, object[]? metaArgs) => new List<NumericEffect>();
         public override SkillExecution PlanUseSkill(Character fromCharacter, List<Character> plannedTargets, SukaLambdaEngine vm, object[]? metaArgs = null) => new(new DummyVMCharacter(), this, new Character[] { }, metaArgs);
         public override bool PlanUseSkill(string command, SukaLambdaEngine vm) { throw new InvalidOperationException("This is a dummy skill commanded by the game itself"); }
+        public override string WriteLogAtStart(SukaLambdaEngine vm) => "";
+        public override string WriteLogForEffect(NumericEffect effect, SukaLambdaEngine vm) => "";
+        public override string WriteLogAtEnd(SukaLambdaEngine vm) => $"Round {vm.currentRoundPointer} ended.";
     }
     public class DummyVMSkillOnGameEnd : Skill
     {
@@ -182,6 +199,9 @@ namespace sukalambda
         public override List<NumericEffect> Execute(SkillExecution skillExecution, SukaLambdaEngine vm, object[]? metaArgs) => new List<NumericEffect>();
         public override SkillExecution PlanUseSkill(Character fromCharacter, List<Character> plannedTargets, SukaLambdaEngine vm, object[]? metaArgs = null) => new(PRODUCTION_CONFIG.dummyVm, this, new Character[] { }, metaArgs);
         public override bool PlanUseSkill(string command, SukaLambdaEngine vm) { throw new InvalidOperationException("This is a dummy skill commanded by the game itself"); }
+        public override string WriteLogAtStart(SukaLambdaEngine vm) => "";
+        public override string WriteLogForEffect(NumericEffect effect, SukaLambdaEngine vm) => "";
+        public override string WriteLogAtEnd(SukaLambdaEngine vm) => $"Game ended in {vm.currentRoundPointer - 1} rounds.";
     }
     /// <summary>
     /// Used for <see cref="MetaEffect"/> triggered by <see cref="MapBlock"/>
@@ -192,9 +212,13 @@ namespace sukalambda
         public override List<NumericEffect> Execute(SkillExecution skillExecution, SukaLambdaEngine vm, object[]? metaArgs) => new List<NumericEffect>();
         public override SkillExecution PlanUseSkill(Character fromCharacter, List<Character> plannedTargets, SukaLambdaEngine vm, object[]? metaArgs = null) => new(PRODUCTION_CONFIG.dummyMap, this, new Character[] { }, metaArgs);
         public override bool PlanUseSkill(string command, SukaLambdaEngine vm) { throw new InvalidOperationException("This is a dummy skill commanded by the map itself"); }
+        public override string WriteLogAtStart(SukaLambdaEngine vm) => "";
+        public override string WriteLogForEffect(NumericEffect effect, SukaLambdaEngine vm) => "Skill from map.";
+        public override string WriteLogAtEnd(SukaLambdaEngine vm) => "";
     }
     public class MoveSkill : Skill
     {
+        ushort srcX, srcY;
         public MoveSkill(Character owner) : base(owner) { }
         public override List<NumericEffect> Execute(SkillExecution skillExecution, SukaLambdaEngine vm, object[]? metaArgs)
         {
@@ -204,7 +228,7 @@ namespace sukalambda
             return new List<NumericEffect>();
         }
         public override SkillExecution PlanUseSkill(Character fromCharacter, List<Character> plannedTargets, SukaLambdaEngine vm, object[]? metaArgs = null) => new(fromCharacter, this, new Character[] { }, metaArgs);
-        
+
         [InGameCommand("mv", @"^[↑↓←→NSWEnsweUDLRudlr]+$",
             "`mv NNESWWW` for moving 2 blks up, 1 right, 1 down, 3 left")]
         public override bool PlanUseSkill(string commandBody, SukaLambdaEngine vm)
@@ -213,19 +237,30 @@ namespace sukalambda
             if (vm.map == null) return false;
             Tuple<ushort, ushort>? position = vm.map.CharacterPosition(owner, out _);
             if (position == null) return false;
+            srcX = position.Item1;
+            srcY = position.Item2;
             List<Heading> plannedMove = new();
             foreach (char c in commandBody)
                 switch (c)
                 {
-                    case '↑': case 'N': case 'n': case 'U': case 'u':  plannedMove.Add(new Heading(HeadingDirection.Up)); break;
-                    case '→': case 'E': case 'e': case 'R': case 'r':  plannedMove.Add(new Heading(HeadingDirection.Right)); break;
-                    case '↓': case 'S': case 's': case 'D': case 'd':  plannedMove.Add(new Heading(HeadingDirection.Down)); break;
-                    case '←': case 'W': case 'w': case 'L': case 'l':  plannedMove.Add(new Heading(HeadingDirection.Left)); break;
+                    case '↑': case 'N': case 'n': case 'U': case 'u': plannedMove.Add(new Heading(HeadingDirection.Up)); break;
+                    case '→': case 'E': case 'e': case 'R': case 'r': plannedMove.Add(new Heading(HeadingDirection.Right)); break;
+                    case '↓': case 'S': case 's': case 'D': case 'd': plannedMove.Add(new Heading(HeadingDirection.Down)); break;
+                    case '←': case 'W': case 'w': case 'L': case 'l': plannedMove.Add(new Heading(HeadingDirection.Left)); break;
                     default: break;
                 }
             vm.RemoveSkillOfCharacterAndType(owner, this);
             vm.PrepareSkill(PlanUseSkill(owner, new(), vm, plannedMove.ToArray()));
             return true;
+        }
+
+        public override string WriteLogAtStart(SukaLambdaEngine vm) => "";
+        public override string WriteLogForEffect(NumericEffect effect, SukaLambdaEngine vm) => "";
+        public override string WriteLogAtEnd(SukaLambdaEngine vm)
+        {
+            Tuple<ushort, ushort>? currentPosition = vm.map!.CharacterPositionIncludingRemoved(owner, out _);
+            if (currentPosition == null) return "";
+            return $"{owner.GetType().Name} {(char)('A'+srcX)}{srcY} -> {(char)('A'+currentPosition.Item1)}{currentPosition.Item2}";
         }
     }
 }

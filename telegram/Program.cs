@@ -73,13 +73,14 @@ async Task HandleUpdateAsync(ITelegramBotClient botClient, Update update, Cancel
             messageText.TrimStart().TrimStart('/'),
             controller
         );
-        string log = controller.logCollector.PopLog(LogCollector.LogLevel.OutGame);
-        if (log != "")
-            sentMessage = await botClient.SendTextMessageAsync(
-                chatId: chatId,
-                text: log,
-                cancellationToken: cancellationToken
-            );
+        List<string> logs = controller.logCollector.PopGameLog();
+        foreach (string log in logs)
+            if (log != "")
+                sentMessage = await botClient.SendTextMessageAsync(
+                    chatId: chatId,
+                    text: log,
+                    cancellationToken: cancellationToken
+                );
     }
 }
 

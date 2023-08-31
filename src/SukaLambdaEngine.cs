@@ -143,7 +143,7 @@
             semaphore.Release();
         }
 
-        public void ExecuteRound()
+        public void ExecuteRound(bool releaseSemaphore = true)
         {
             semaphore.WaitOne(5000);
             foreach (var kvp in characters)
@@ -170,7 +170,8 @@
             // TODO: some baseline codes to judge end of game without map
             if (map?.JudgeEndGame(this) == true || ++currentRoundPointer >= PRODUCTION_CONFIG.MAX_ROUNDS)
                 OnEndGame();
-            semaphore.Release();
+            if (releaseSemaphore)
+                semaphore.Release();
         }
 
         private void OnStartRound()
