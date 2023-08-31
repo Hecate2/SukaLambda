@@ -160,16 +160,16 @@ namespace sukalambda
 
         public int CountCharacterIncludingRemoved() => conn.characterInMap.Count();
         public int CountCharacter() => conn.characterInMap.Where(c => c.removed == false).Count();
-        public Tuple<ushort, ushort>? CharacterPosition(Character character)
+        public Tuple<ushort, ushort>? CharacterPosition(Character character, out CharacterInMapData? characterInDatabase)
         {
             //CharacterMap? characterInDatabase = conn.Table<CharacterMap>().Where(c => c.characterID == character.persistedStatus.id).FirstOrDefault();
-            CharacterInMapData? characterInDatabase = conn.characterInMap.Where(c => c.characterID == character.persistedStatus.id).FirstOrDefault();
+            characterInDatabase = conn.characterInMap.Where(c => c.characterID == character.persistedStatus.id).FirstOrDefault();
             return (characterInDatabase == null || characterInDatabase.removed == true) ? null :
                 new Tuple<ushort, ushort>(characterInDatabase.positionX, characterInDatabase.positionY);
         }
-        public Tuple<ushort, ushort>? CharacterPositionIncludingRemoved(Character character)
+        public Tuple<ushort, ushort>? CharacterPositionIncludingRemoved(Character character, out CharacterInMapData? characterInDatabase)
         {
-            CharacterInMapData? characterInDatabase = conn.characterInMap.Where(c => c.characterID == character.persistedStatus.id).FirstOrDefault();
+            characterInDatabase = conn.characterInMap.Where(c => c.characterID == character.persistedStatus.id).FirstOrDefault();
             return (characterInDatabase == null) ? null :
                 new Tuple<ushort, ushort>(characterInDatabase.positionX, characterInDatabase.positionY);
         }
@@ -194,7 +194,7 @@ namespace sukalambda
             {
                 int count = CountCharacterIncludingRemoved();
                 if (count >= int.MaxValue) throw new ArgumentException($"Too many characters!");
-                if (CharacterPositionIncludingRemoved(character) != null) throw new ArgumentException($"This character {character.persistedStatus.accountId} had been added before");
+                if (CharacterPositionIncludingRemoved(character, out _) != null) throw new ArgumentException($"This character {character.persistedStatus.accountId} had been added before");
                 Guid? anotherCharacterId = HasCharacterAt(x, y);
                 if (anotherCharacterId != null)
                     throw new ArgumentException((vm != null) ?
@@ -254,7 +254,7 @@ namespace sukalambda
 
         public static double ToRadian(double headingDegree)
         {
-            headingDegree = headingDegree + 90;  // convert from 0 degree at north to 0 degree at east
+            headingDegree = headingDegree - 90;  // convert from 0 degree at north to 0 degree at east
             return headingDegree * Math.PI / 180;
         }
 
@@ -279,8 +279,8 @@ namespace sukalambda
             using var tx = conn.Database.BeginTransaction();
             {
                 ushort x, y;
-                Tuple<ushort, ushort>? currentPosition = CharacterPosition(character);
-                if (currentPosition == null) return;
+                Tuple<ushort, ushort>? currentPosition = CharacterPosition(character, out CharacterInMapData? charData);
+                if (currentPosition == null || charData == null) return;
                 x = currentPosition.Item1; y = currentPosition.Item2;
                 for (ushort i = 0; i < headings.Length; ++i )
                 {
@@ -299,18 +299,21 @@ namespace sukalambda
                         if (character.removedFromMap || character.statusTemporary.Mobility <= 0) break;
                     }
                     if (headingResult == null) continue;
+                    Tuple<ushort, ushort> src = new(x, y);
                     Tuple<ushort, ushort> movement = ComputeMovement(character, headingResult, distances[i]);
+                    character.statusTemporary.Mobility -= distances[i];
                     x += movement.Item1;
                     y += movement.Item2;
                     Tuple<ushort, ushort> destination = new(x, y);
-                    if (vm != null)
-                    character.OnMoveInMap(vm, new Tuple<ushort, ushort>(x, y), plannedHeading, destination, headingResult);
+                    if (vm == null) break;
+                    character.OnMoveInMap(vm, src, plannedHeading, destination, headingResult);
                     if (character.removedFromMap || character.statusTemporary.Mobility <= 0) break;
                     if (blocks.TryGetValue(destination, out MapBlock? blockTo))
                         blockTo.OnCharacterMovingIn(character, headings, i);
                     if (character.removedFromMap || character.statusTemporary.Mobility <= 0) break;
                 }
-                conn.Update(new CharacterInMapData { characterID=character.persistedStatus.id, positionX=x, positionY=y });
+                charData.positionX = x; charData.positionY = y;
+                conn.Update(charData);
                 conn.SaveChanges();
             }
             tx.Commit();

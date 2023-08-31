@@ -6,7 +6,10 @@
         public static bool Start(string account, string command, RootController controller)
         {
             if (controller.vm != null)  return false;
-            SukaLambdaEngine vm = new(controller, map: new Island68($"file:{nameof(Island68)}?mode=memory&cache=shared"));
+            Map map = new Island68($"file:{nameof(Island68)}?mode=memory&cache=shared");
+            map.JudgeEndGame = (SukaLambdaEngine? vm) => false;
+
+            SukaLambdaEngine vm = new(controller, map: map);
             vm.AddCharacter(new Lakhesh(account), 0, 0, new Heading(HeadingDirection.E));
             return true;
         }
