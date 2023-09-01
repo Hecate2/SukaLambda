@@ -127,9 +127,55 @@ namespace sukalambda
         public Func<SukaLambdaEngine?, Character?> JudgeWinningCharacter;
         public string WinningConditions = "Describe how to win in this map!";
 
-
         // Define the special effects for blocks if needed
         public Dictionary<Tuple<ushort, ushort>, MapBlock> blocks = new();
+
+        public Tuple<ushort, ushort>? ComputeCoordinate(int guessX, int guessY, bool allowOverflow)
+        {
+            if (allowOverflow)
+            {
+                guessX = guessX % this.width;
+                guessY = guessY % this.height;
+            }
+            if (guessX >= 0 && guessX < this.width && guessY >= 0 && guessY < this.height)
+                return new((ushort)guessX, (ushort)guessY);
+            return null;
+        }
+
+        public List<Tuple<ushort, ushort>> AllCoordinatesWithinManhattanDistance(Tuple<ushort, ushort> center, ushort distance, bool allowOverflow = false) => AllCoordinatesWithinManhattanDistance(center.Item1, center.Item2, distance, allowOverflow);
+        public List<Tuple<ushort, ushort>> AllCoordinatesWithinManhattanDistance(ushort x, ushort y, ushort distance, bool allowOverflow = false)
+        {
+            List<Tuple<ushort, ushort>> result = new();
+            if ((x >= this.width || y >= this.height) && allowOverflow == false) return result;
+            x = (ushort)(x % this.width); y = (ushort)(y % this.width);
+            int guessX = x, guessY = y - distance;  // start guessing from the top
+            Tuple<ushort, ushort>? coordinate;
+            while (guessX < x + distance)  // top-right side
+            {
+                coordinate = ComputeCoordinate(guessX, guessY, allowOverflow);
+                if (coordinate != null) result.Add(coordinate);
+                guessX += 1;  guessY += 1;
+            }
+            while (guessY < y + distance)  // bottom-right side
+            {
+                coordinate = ComputeCoordinate(guessX, guessY, allowOverflow);
+                if (coordinate != null) result.Add(coordinate);
+                guessX -= 1; guessY += 1;
+            }
+            while (guessX > x - distance)  // bottom-left side
+            {
+                coordinate = ComputeCoordinate(guessX, guessY, allowOverflow);
+                if (coordinate != null) result.Add(coordinate);
+                guessX -= 1; guessY -= 1;
+            }
+            while (guessY > y - distance)  // top-left side
+            {
+                coordinate = ComputeCoordinate(guessX, guessY, allowOverflow);
+                if (coordinate != null) result.Add(coordinate);
+                guessX += 1; guessY -= 1;
+            }
+            return distance > 0 ? result.Concat(AllCoordinatesWithinManhattanDistance(x, y, (ushort)(distance - 1), allowOverflow)).ToList() : result;
+        }
 
         public Dictionary<Alignment, HashSet<Character>> charactersNotDetectedByAlignment = new();
         public void ClearUndetection()
@@ -301,7 +347,7 @@ namespace sukalambda
                     if (headingResult == null) continue;
                     Tuple<ushort, ushort> src = new(x, y);
                     Tuple<ushort, ushort> movement = ComputeMovement(character, headingResult, distances[i]);
-                    character.statusTemporary.Mobility -= distances[i];
+                    character.statusTemporary.Mobility -= this.blocks.TryGetValue(src, out MapBlock? b) ? distances[i] * b.mobilityCost.GetValueOrDefault(character.altitude, (ushort)1) : distances[i];
                     x += movement.Item1;
                     y += movement.Item2;
                     Tuple<ushort, ushort> destination = new(x, y);
