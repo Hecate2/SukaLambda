@@ -7,11 +7,66 @@
         {
             if (controller.vm != null)  return false;
             Map map = new Island68($"file:{nameof(Island68)}?mode=memory&cache=shared");
-            map.JudgeEndGame = (SukaLambdaEngine? vm) => false;
+            Lakhesh lakhesh = new Lakhesh(account);
+            GetWater getWater = new GetWater(lakhesh);
+            lakhesh.skills.Add(getWater);
+            map.JudgeEndGame = (SukaLambdaEngine? vm) =>
+            {
+                // lose
+                if (vm == null || vm.map == null) return true;
+                Tuple<ushort, ushort>? position = vm.map.CharacterPosition(lakhesh, out _);
+                if (position == null)  return true;
+
+                // win
+                if (map.blocks.TryGetValue(position, out MapBlock? b)
+                 && b.GetType() == typeof(Warehouse) && getWater.hasWater)
+                    return true;
+
+                return false;
+            };
 
             SukaLambdaEngine vm = new(controller, map: map);
-            vm.AddCharacter(new Lakhesh(account), 0, 0, new Heading(HeadingDirection.E));
+            vm.AddCharacter(lakhesh, 0, 0, new Heading(HeadingDirection.E));
             return true;
+        }
+
+        public class GetWater : Skill
+        {
+            public bool hasWater = false;
+            public GetWater(Character owner) : base(owner) { }
+
+            public override List<NumericEffect> Execute(SkillExecution skillExecution, SukaLambdaEngine vm, object[]? metaArgs = null)
+            {
+                if (hasWater == false)
+                {
+                    hasWater = true;
+                    owner.statusCommitted.Mobility -= (long)Math.Abs(owner.statusCommitted.Mobility * 0.4);
+                }
+                return new List<NumericEffect>();
+            }
+
+            [InGameCommand("water", "w|water", "Get water within distance 1; Mobility -40%")]
+            public override bool PlanUseSkill(string commandBody, SukaLambdaEngine vm)
+            {
+                if (hasWater || vm.map?.GetType() != typeof(Island68)) return false;
+                Tuple<ushort, ushort>? position = vm.map.CharacterPosition(owner, out _);
+                if (position == null) return false;
+                MapBlock? b;
+                foreach (Tuple<ushort, ushort> coordinate in vm.map.AllCoordinatesWithinManhattanDistance(position, 1))
+                {
+                    if (vm.map.blocks.TryGetValue(coordinate, out b)
+                      && b.GetType() == typeof(Water))
+                    {
+                        vm.PrepareSkill(new SkillExecution(owner, this, new Character[] { }, null));
+                        return true;
+                    }
+                }
+                return false;
+            }
+
+            public override string WriteLogAtStart(SukaLambdaEngine vm) => "";
+            public override string WriteLogAtEnd(SukaLambdaEngine vm) => "水を得る！";
+            public override string WriteLogForEffect(NumericEffect effect, SukaLambdaEngine vm) => "";
         }
         public Island68(string databasePath, SukaLambdaEngine? vm = null) : base(databasePath, 1, 1, vm)
         {
