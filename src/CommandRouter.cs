@@ -89,10 +89,9 @@ namespace sukalambda
         {
             accountToInGameMethod.TryAdd(character.accountId, new());
             accountToInGameMethod[character.accountId].TryAdd(character, new());
-            MethodInfo[] methods = new MethodInfo[] { };
             foreach (Skill skill in character.skills)
             {
-                methods = methods.Concat(skill.GetType().GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static)).ToArray();
+                MethodInfo[] methods = skill.GetType().GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static);
                 foreach (MethodInfo method in methods)
                 {
                     InGameCommand? attribute = method.GetCustomAttribute<InGameCommand>();
