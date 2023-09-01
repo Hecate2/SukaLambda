@@ -33,39 +33,48 @@
         public class GetWater : Skill
         {
             public bool hasWater = false;
+            public bool executionSuccess = false;
             public GetWater(Character owner) : base(owner) { }
 
             public override List<NumericEffect> Execute(SkillExecution skillExecution, SukaLambdaEngine vm, object[]? metaArgs = null)
             {
-                if (hasWater == false)
-                {
-                    hasWater = true;
-                    owner.statusCommitted.Mobility -= (long)Math.Abs(owner.statusCommitted.Mobility * 0.4);
-                }
-                return new List<NumericEffect>();
+                List<NumericEffect> result = new();
+                if (vm.map == null || hasWater) return result;
+                Tuple<ushort, ushort>? position = vm.map.CharacterPosition(owner, out _);
+                if (position == null) return result;
+                MapBlock? b;
+                foreach (Tuple<ushort, ushort> coordinate in vm.map.AllCoordinatesWithinManhattanDistance(position, 1))
+                    if (vm.map.blocks.TryGetValue(coordinate, out b)
+                      && b.GetType() == typeof(Water))
+                    {
+                        hasWater = true;
+                        executionSuccess = true;
+                        owner.statusCommitted.Mobility -= (long)Math.Abs(owner.statusCommitted.Mobility * 0.4);
+                        break;
+                    }
+                return result;
             }
 
-            [InGameCommand("water", "w|water", "Get water within distance 1; Mobility -40%")]
+            [InGameCommand("water", ".*", "Get water within distance 1; Mobility -40%")]
             public override bool PlanUseSkill(string commandBody, SukaLambdaEngine vm)
             {
                 if (hasWater || vm.map?.GetType() != typeof(Island68)) return false;
                 Tuple<ushort, ushort>? position = vm.map.CharacterPosition(owner, out _);
                 if (position == null) return false;
-                MapBlock? b;
-                foreach (Tuple<ushort, ushort> coordinate in vm.map.AllCoordinatesWithinManhattanDistance(position, 1))
-                {
-                    if (vm.map.blocks.TryGetValue(coordinate, out b)
-                      && b.GetType() == typeof(Water))
-                    {
-                        vm.PrepareSkill(new SkillExecution(owner, this, new Character[] { }, null));
-                        return true;
-                    }
-                }
-                return false;
+                vm.PrepareSkill(new SkillExecution(owner, this, new Character[] { }, null));
+                return true;
             }
 
             public override string WriteLogAtStart(SukaLambdaEngine vm) => "";
-            public override string WriteLogAtEnd(SukaLambdaEngine vm) => "水を得る！";
+            public override string WriteLogAtEnd(SukaLambdaEngine vm)
+            {
+                if (executionSuccess)
+                {
+                    executionSuccess = false;
+                    return "水を得る！";
+                }
+                return "";
+            }
             public override string WriteLogForEffect(NumericEffect effect, SukaLambdaEngine vm) => "";
         }
         public Island68(string databasePath, SukaLambdaEngine? vm = null) : base(databasePath, 1, 1, vm)
@@ -101,6 +110,7 @@
                         case '森':  InsertMapBlock(new Forest((ushort)columnIndex, (ushort)rowIndex)); break;
                         case '草':  InsertMapBlock(new Lawn((ushort)columnIndex, (ushort)rowIndex)); break;
                         case '水':  InsertMapBlock(new Water((ushort)columnIndex, (ushort)rowIndex)); break;
+                        // TODO: 井
                         case '口':  default: break;
                     }
             ;
@@ -109,12 +119,14 @@
 
     public class Warehouse : MapBlock
     {
+        public new Dictionary<Altitude, ushort> mobilityCost = new() { { Altitude.Surface, 0 } };
         public Warehouse(ushort x, ushort y, SukaLambdaEngine? vm = null) : base(x, y, vm) { }
         public new string RenderAsText(Language lang) => "仓";
     }
 
     public class Forest : MapBlock
     {
+        public new Dictionary<Altitude, ushort> mobilityCost = new() { {Altitude.Surface, 3} };
         public Forest(ushort x, ushort y, SukaLambdaEngine? vm = null) : base(x, y, vm) { }
         public new string RenderAsText(Language lang) => "森林"[(x+y+((y*3<vm?.map?.height) ? 1 : 0)) % 2].ToString();
     }
@@ -125,6 +137,8 @@
     }
     public class Water : MapBlock
     {
+        public new bool AllowEntrancy(Character character,
+            Heading?[] movements, ushort movementIndexEnteringThisBlock) => false;
         public Water(ushort x, ushort y, SukaLambdaEngine? vm = null) : base(x, y, vm) { }
         public new string RenderAsText(Language lang) => "水";
     }

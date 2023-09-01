@@ -189,7 +189,7 @@ namespace sukalambda
         public override List<NumericEffect> Execute(SkillExecution skillExecution, SukaLambdaEngine vm, object[]? metaArgs) => new List<NumericEffect>();
         public new SkillExecution PlanUseSkill(Character fromCharacter, List<Character> plannedTargets, SukaLambdaEngine vm, object[]? metaArgs = null) => new(new DummyVMCharacter(), this, new Character[] { }, metaArgs);
         public override bool PlanUseSkill(string command, SukaLambdaEngine vm) { throw new InvalidOperationException("This is a dummy skill commanded by the game itself"); }
-        public override string WriteLogAtStart(SukaLambdaEngine vm) => $"Round {vm.currentRoundPointer} started.";
+        public override string WriteLogAtStart(SukaLambdaEngine vm) => $"Round #{vm.currentRoundPointer} started.";
         public override string WriteLogForEffect(NumericEffect effect, SukaLambdaEngine vm) => "";
         public override string WriteLogAtEnd(SukaLambdaEngine vm) => "";
     }
@@ -202,7 +202,7 @@ namespace sukalambda
         public override bool PlanUseSkill(string command, SukaLambdaEngine vm) { throw new InvalidOperationException("This is a dummy skill commanded by the game itself"); }
         public override string WriteLogAtStart(SukaLambdaEngine vm) => "";
         public override string WriteLogForEffect(NumericEffect effect, SukaLambdaEngine vm) => "";
-        public override string WriteLogAtEnd(SukaLambdaEngine vm) => $"Round {vm.currentRoundPointer} ended.";
+        public override string WriteLogAtEnd(SukaLambdaEngine vm) => $"Round #{vm.currentRoundPointer} ended.";
     }
     public class DummyVMSkillOnGameEnd : Skill
     {
@@ -213,7 +213,7 @@ namespace sukalambda
         public override bool PlanUseSkill(string command, SukaLambdaEngine vm) { throw new InvalidOperationException("This is a dummy skill commanded by the game itself"); }
         public override string WriteLogAtStart(SukaLambdaEngine vm) => "";
         public override string WriteLogForEffect(NumericEffect effect, SukaLambdaEngine vm) => "";
-        public override string WriteLogAtEnd(SukaLambdaEngine vm) => $"Game ended in {vm.currentRoundPointer - 1} rounds.";
+        public override string WriteLogAtEnd(SukaLambdaEngine vm) => $"Game ended in {vm.currentRoundPointer} rounds.";
     }
     /// <summary>
     /// Used for <see cref="MetaEffect"/> triggered by <see cref="MapBlock"/>

@@ -53,15 +53,21 @@ namespace sukalambda
         public ushort y { get; init; }
         public SukaLambdaEngine? vm { get; set; }  // You can do something when the vm is set
         public List<MetaEffect> metaEffects = new();
-        public Dictionary<Altitude, ushort> mobilityCost = new()
+        public static Dictionary<Altitude, ushort> defaultMobilityCost = new()
         {
             {Altitude.Underwater, 100},{Altitude.Surface, 1},{Altitude.Air, 0},{Altitude.Space, 0},
         };
+        public Dictionary<Altitude, ushort> mobilityCost = defaultMobilityCost;
         public MapBlock(ushort x, ushort y, SukaLambdaEngine? vm)
         {
             this.x = x;  this.y = y;
             this.vm = vm;
         }
+
+        public bool AllowEntrancy(Character character,
+            Heading?[] movements, ushort movementIndexEnteringThisBlock) => true;
+        public bool AllowDeparture(Character character,
+            Heading?[] movements, ushort movementIndexEnteringThisBlock) => true;
 
         /// <summary>
         /// 
@@ -325,9 +331,9 @@ namespace sukalambda
             using var tx = conn.Database.BeginTransaction();
             {
                 ushort x, y;
-                Tuple<ushort, ushort>? currentPosition = CharacterPosition(character, out CharacterInMapData? charData);
-                if (currentPosition == null || charData == null) return;
-                x = currentPosition.Item1; y = currentPosition.Item2;
+                Tuple<ushort, ushort>? src = CharacterPosition(character, out CharacterInMapData? charData);
+                if (src == null || charData == null) return;
+                x = src.Item1; y = src.Item2;
                 for (ushort i = 0; i < headings.Length; ++i )
                 {
                     bool outOfMap = false;
@@ -335,7 +341,12 @@ namespace sukalambda
                     Heading? headingResult = CheckMovingOutOfMap(x, y, plannedHeading);
                     if (headingResult != plannedHeading) outOfMap = true;
                     // You can also change distances by yourself!
-                    if (blocks.TryGetValue(currentPosition, out MapBlock? block))
+
+                    Tuple<ushort, ushort> currentPosition = new(x, y);
+                    dynamic? block = null;
+                    if (this.blocks.ContainsKey(currentPosition))
+                        block = blocks[currentPosition];
+                    if (block != null)
                     {
                         if (outOfMap)
                             block.OnCharacterMovingOutOfMapFromThisBlock(character, headings, i);
@@ -345,17 +356,35 @@ namespace sukalambda
                         if (character.removedFromMap || character.statusTemporary.Mobility <= 0) break;
                     }
                     if (headingResult == null) continue;
-                    Tuple<ushort, ushort> src = new(x, y);
                     Tuple<ushort, ushort> movement = ComputeMovement(character, headingResult, distances[i]);
-                    character.statusTemporary.Mobility -= this.blocks.TryGetValue(src, out MapBlock? b) ? distances[i] * b.mobilityCost.GetValueOrDefault(character.altitude, (ushort)1) : distances[i];
-                    x += movement.Item1;
-                    y += movement.Item2;
+                    
+                    int mobilityCost;
+                    if (block != null && block.mobilityCost.ContainsKey(character.altitude))
+                        mobilityCost = distances[i] * block.mobilityCost[character.altitude];
+                    else
+                        mobilityCost = distances[i] * MapBlock.defaultMobilityCost[character.altitude];
+                    character.statusTemporary.Mobility -= mobilityCost;
+
+                    if (block == null || block.AllowDeparture(character, headings, i))
+                    {
+                        x += movement.Item1;
+                        y += movement.Item2;
+                    }
                     Tuple<ushort, ushort> destination = new(x, y);
                     if (vm == null) break;
-                    character.OnMoveInMap(vm, src, plannedHeading, destination, headingResult);
+                    character.OnMoveInMap(vm, currentPosition, plannedHeading, destination, headingResult);
                     if (character.removedFromMap || character.statusTemporary.Mobility <= 0) break;
-                    if (blocks.TryGetValue(destination, out MapBlock? blockTo))
-                        blockTo.OnCharacterMovingIn(character, headings, i);
+                    if (blocks.ContainsKey(destination))  // blockTo
+                    {
+                        block = blocks[destination];
+                        if (block != null && !block.AllowEntrancy(character, headings, i))
+                        {   // cancel movement
+                            x -= movement.Item1;
+                            y -= movement.Item2;
+                            break;
+                        }
+                        block.OnCharacterMovingIn(character, headings, i);
+                    }
                     if (character.removedFromMap || character.statusTemporary.Mobility <= 0) break;
                 }
                 charData.positionX = x; charData.positionY = y;

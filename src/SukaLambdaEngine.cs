@@ -44,6 +44,9 @@
         public Semaphore semaphore = new(1, 1);
 
         public int timeStarted = DateTime.Now.Second;
+        public bool gameStarted = false;
+        public bool gameEnded = false;
+
         public Random rand { get; init; }
         public class Round : List<SkillExecution> { }
         public uint currentRoundPointer { get; private set; } = 0;
@@ -69,6 +72,7 @@
         }
         public void SetMap(Map map)
         {
+            if (gameEnded) return;
             semaphore.WaitOne(5000);
             if (this.map != null) map.vm = null;
             this.map = map; map.vm = this;
@@ -77,6 +81,7 @@
 
         public void AddCharacter(Character character, ushort x, ushort y, Heading heading, Alignment? alignment=null)
         {
+            if (gameEnded) return;
             if (map == null) throw new InvalidOperationException("Map is null!");
             semaphore.WaitOne(5000);
             rootController.cmdRouter.RegisterCommandsForCharacter(character);
@@ -89,6 +94,7 @@
 
         public void AddCharacter(Character character, Alignment? alignment = null)
         {
+            if (gameEnded) return;
             if (map != null) throw new InvalidOperationException("Map had been initialized!");
             semaphore.WaitOne(5000);
             rootController.cmdRouter.RegisterCommandsForCharacter(character);
@@ -99,6 +105,7 @@
 
         public void RemoveCharacter(Character character)
         {
+            if (gameEnded) return;
             semaphore.WaitOne(5000);
             //characters.Remove(character.id);
             rootController.cmdRouter.UnregisterCommandsForCharacter(character);
@@ -110,6 +117,7 @@
 
         public void PrepareSkill(SkillExecution execution)
         {
+            if (gameEnded) return;
             semaphore.WaitOne(500);
             if (rounds[currentRoundPointer] == null) rounds[currentRoundPointer] = new();
             rounds[currentRoundPointer].Add(execution);
@@ -118,6 +126,7 @@
 
         public void RemoveSkillOfCharacterAndType(Character character, Skill? type=null, uint roundBias=0)
         {
+            if (gameEnded) return;
             semaphore.WaitOne(500);
             if (rounds[currentRoundPointer + roundBias] == null) rounds[currentRoundPointer + roundBias] = new();
             Round round = rounds[currentRoundPointer + roundBias];
@@ -129,6 +138,7 @@
 
         public void AddEffectToRound(MetaEffect effect, uint roundBias=0)
         {
+            if (gameEnded) return;
             semaphore.WaitOne(500);
             if (currentRoundPointer + roundBias < PRODUCTION_CONFIG.MAX_ROUNDS)
                 effectsByRound[currentRoundPointer + roundBias].Add(effect);
@@ -137,6 +147,7 @@
 
         public void AddEternalEffect(MetaEffect effect)
         {
+            if (gameEnded) return;
             semaphore.WaitOne(500);
             for (uint i = currentRoundPointer; i < PRODUCTION_CONFIG.MAX_ROUNDS; ++i)
                 effectsByRound[i].Add(effect);
@@ -145,6 +156,7 @@
 
         public void ExecuteRound(bool releaseSemaphore = true)
         {
+            if (gameEnded) return;
             semaphore.WaitOne(5000);
             foreach (var kvp in characters)
                 kvp.Value.statusTemporary = kvp.Value.statusCommitted.Clone();
@@ -176,25 +188,31 @@
 
         private void OnStartRound()
         {
+            if (gameEnded) return;
             foreach (NumericEffect effect in PRODUCTION_CONFIG.roundStart.PlanUseSkill(PRODUCTION_CONFIG.dummyVm, new(), this).Execute(this))
                 effect.target.CommitNumericEffect(effect);
         }
         private void OnEndRound()
         {
+            if (gameEnded) return;
             foreach (NumericEffect effect in PRODUCTION_CONFIG.roundEnd.PlanUseSkill(PRODUCTION_CONFIG.dummyVm, new(), this).Execute(this))
                 effect.target.CommitNumericEffect(effect);
         }
         private void OnStartGame()
         {
+            if (gameStarted) return;
+            gameStarted = true;
             foreach (NumericEffect effect in PRODUCTION_CONFIG.gameStart.PlanUseSkill(PRODUCTION_CONFIG.dummyVm, new(), this).Execute(this))
                 effect.target.CommitNumericEffect(effect);
         }
         private void OnEndGame()
         {
+            if (gameEnded) return;
             foreach (NumericEffect effect in PRODUCTION_CONFIG.gameEnd.PlanUseSkill(PRODUCTION_CONFIG.dummyVm, new(), this).Execute(this))
                 effect.target.CommitNumericEffect(effect);
             foreach (Character character in characters.Values)
                 character.PersistEarnings();
+            gameEnded = true;
         }
     }
 }
