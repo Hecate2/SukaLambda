@@ -21,6 +21,7 @@ namespace sukalambda
         public GameDbContext(string dbPath)
         {
             this.dbPath = dbPath;
+            this.Database.EnsureDeleted();
             this.Database.EnsureCreated();  // works only when there is no table
         }
         protected override void OnConfiguring(DbContextOptionsBuilder options) => options.UseSqlite($"Data Source={dbPath}");

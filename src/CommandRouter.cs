@@ -41,7 +41,7 @@ namespace sukalambda
         public readonly
             Dictionary<string,  // command name
                 Tuple<OutGameCommand,
-                    Func<string,  // account
+                    Func<string,   // account
                         string,   // command body
                         RootController, bool>>> outGameMethod = new();
 
@@ -67,6 +67,19 @@ namespace sukalambda
 
         public void ExecuteCommand(string account, string command, RootController controller)
         {
+            if (command.ToLower() == "start")
+            {
+                foreach (Type type in Assembly.GetExecutingAssembly().GetTypes())
+                {
+                    foreach (MethodInfo method in type.GetMethods(BindingFlags.Public | BindingFlags.Static))
+                    {
+                        OutGameCommand? attribute = method.GetCustomAttribute<OutGameCommand>();
+                        if (attribute is null) continue;
+                        controller.logCollector.Log(LogCollector.LogType.OutGame, $"/{attribute.name} {attribute.regex} {attribute.help}");
+                    }
+                }
+                return;
+            }
             string[] cmdSplitted = Regex.Split(command, @"\s+");
             string commandName = cmdSplitted[0];
             string commandBody = String.Join(" ", cmdSplitted[1..]);
@@ -85,7 +98,7 @@ namespace sukalambda
                 outGameMethod[commandName].Item2(account, commandBody, controller);
         }
 
-        public void RegisterCommandsForCharacter(Character character)
+        public void RegisterCommandsForCharacter(Character character, SukaLambdaEngine vm)
         {
             accountToInGameMethod.TryAdd(character.accountId, new());
             accountToInGameMethod[character.accountId].TryAdd(character, new());
@@ -99,6 +112,7 @@ namespace sukalambda
                     accountToInGameMethod[character.accountId][character][attribute.name] =
                         new Tuple<InGameCommand, Func<string, SukaLambdaEngine, bool>>
                         (attribute, method.CreateDelegate<Func<string, SukaLambdaEngine, bool>>(skill));
+                    vm.rootController.logCollector.Log(LogCollector.LogType.Character, $"{character.GetType().Name} /{attribute.name} {attribute.regex} {attribute.help}");
                 }
             }
         }

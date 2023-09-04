@@ -241,7 +241,7 @@ namespace sukalambda
         }
 
         [InGameCommand("mv", @"^[↑↓←→NSWEnsweUDLRudlr]+$",
-            "`mv NNESWWW` for moving 2 blks up, 1 right, 1 down, 3 left")]
+            "`/mv NNESWWW` for moving 2 blks up, 1 right, 1 down, 3 left")]
         public override bool PlanUseSkill(string commandBody, SukaLambdaEngine vm)
         {
             if (owner.altitude != Altitude.Surface) throw new NotImplementedException();

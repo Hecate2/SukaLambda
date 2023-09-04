@@ -1,4 +1,6 @@
-﻿namespace sukalambda
+﻿using System;
+
+namespace sukalambda
 {
     public class CONFIG
     {
@@ -45,6 +47,7 @@
 
         public int timeStarted = DateTime.Now.Second;
         public bool gameStarted = false;
+        public bool gamePaused = false;
         public bool gameEnded = false;
 
         public Random rand { get; init; }
@@ -84,7 +87,7 @@
             if (gameEnded) return;
             if (map == null) throw new InvalidOperationException("Map is null!");
             semaphore.WaitOne(5000);
-            rootController.cmdRouter.RegisterCommandsForCharacter(character);
+            rootController.cmdRouter.RegisterCommandsForCharacter(character, this);
             characters[character.persistedStatus.id] = character;
             if (alignment != null) character.alignment = alignment;
             map.AddCharacter(character, x, y, heading, alignment ?? character.alignment);
@@ -97,7 +100,7 @@
             if (gameEnded) return;
             if (map != null) throw new InvalidOperationException("Map had been initialized!");
             semaphore.WaitOne(5000);
-            rootController.cmdRouter.RegisterCommandsForCharacter(character);
+            rootController.cmdRouter.RegisterCommandsForCharacter(character, this);
             if (alignment != null) character.alignment = alignment;
             characters[character.persistedStatus.id] = character;
             semaphore.Release();
@@ -130,9 +133,9 @@
             semaphore.WaitOne(500);
             if (rounds[currentRoundPointer + roundBias] == null) rounds[currentRoundPointer + roundBias] = new();
             Round round = rounds[currentRoundPointer + roundBias];
-            foreach (SkillExecution execution in round)
-                if (execution.fromCharacter == character && (type == null || execution.skill.GetType() == type.GetType()))
-                    round.Remove(execution);
+            round.RemoveAll(execution => 
+                execution.fromCharacter == character
+                && (type == null || execution.skill.GetType() == type.GetType()));
             semaphore.Release();
         }
 
@@ -156,13 +159,15 @@
 
         public void ExecuteRound(bool releaseSemaphore = true)
         {
-            if (gameEnded) return;
+            if (gameEnded || gamePaused) return;
             semaphore.WaitOne(5000);
             foreach (var kvp in characters)
                 kvp.Value.statusTemporary = kvp.Value.statusCommitted.Clone();
             if (currentRoundPointer == 0)  OnStartGame();
             OnStartRound();
             HashSet<SkillExecution> executed = new();
+            if (rounds[currentRoundPointer] == null)
+                rounds[currentRoundPointer] = new();
             for (int currentSkillPointer = 0; currentSkillPointer < rounds[currentRoundPointer].Count; ++currentSkillPointer)
             {
                 rounds[currentRoundPointer].Sort((l, r) =>

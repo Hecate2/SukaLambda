@@ -9,6 +9,7 @@ using System.Collections.Concurrent;
 using System.Text;
 
 ConcurrentDictionary<long, RootController> chatIdToController = new();
+ConcurrentDictionary<long, Task> chatIdToTimedExecution = new();
 
 var botClient = new TelegramBotClient(System.IO.File.ReadAllText(@"botToken.txt", Encoding.UTF8).TrimEnd().TrimStart());
 
@@ -64,23 +65,62 @@ async Task HandleUpdateAsync(ITelegramBotClient botClient, Update update, Cancel
         return;
     }
 
+    void ExecuteOneRoundAfterMilliseconds(int milliseconds, RootController controller)
+    {
+        while (true)
+        {
+            if (controller.vm != null && controller.vm.gameEnded)  // Ended by external force
+            {
+                controller.vm = null;
+                chatIdToController.Remove(chatId, out _);
+                chatIdToTimedExecution.Remove(chatId, out _);
+                botClient.SendTextMessageAsync(
+                    chatId: chatId,
+                    text: "Ready for the next game",
+                    cancellationToken: cancellationToken);
+                break;
+            }
+            Thread.Sleep(milliseconds);
+            if (controller.vm != null && !controller.vm.gameEnded && !controller.vm.gamePaused)
+            {
+                controller.vm.ExecuteRound(releaseSemaphore: false);
+                List<string> logs = controller.logCollector.PopGameLog();
+                string contentToSend = String.Join("\r\n", logs);
+                if (contentToSend != "")
+                    botClient.SendTextMessageAsync(
+                        chatId: chatId,
+                        text: contentToSend,
+                        cancellationToken: cancellationToken);
+                if (controller.vm.map != null)
+                    botClient.SendTextMessageAsync(chatId: chatId, text: controller.vm.map.RenderAsText(Language.cn), cancellationToken: cancellationToken);
+                controller.vm.semaphore.Release();
+            }
+        }
+    }
+
+
     if (message.From != null)
     {
         long senderId = message.From.Id;
-        RootController controller = chatIdToController.GetOrAdd(chatId, new RootController(GamePlatform.Telegram));
+        RootController controller = chatIdToController.GetOrAdd(
+            chatId, new RootController(chatId.ToString(), GamePlatform.Telegram)
+        );
         controller.cmdRouter.ExecuteCommand(
             senderId.ToString(),
             messageText.TrimStart().TrimStart('/'),
             controller
         );
         List<string> logs = controller.logCollector.PopGameLog();
-        foreach (string log in logs)
-            if (log != "")
-                sentMessage = await botClient.SendTextMessageAsync(
-                    chatId: chatId,
-                    text: log,
-                    cancellationToken: cancellationToken
-                );
+        string contentToSend = String.Join("\r\n", logs);
+        if (contentToSend != "")
+            sentMessage = await botClient.SendTextMessageAsync(
+                chatId: chatId,
+                text: contentToSend,
+                cancellationToken: cancellationToken
+            );
+        if (controller.vm?.map != null && !chatIdToTimedExecution.ContainsKey(chatId))
+            _ = chatIdToTimedExecution.GetOrAdd(chatId,
+                Task.Run(() => ExecuteOneRoundAfterMilliseconds(15000, controller)));
     }
 }
 

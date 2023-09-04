@@ -2,11 +2,15 @@
 {
     public class Island68 : Map
     {
-        [OutGameCommand("i68", "i68", "Start game on island 68")]
+        [OutGameCommand("i68", ".*", "Start game on island 68")]
         public static bool Start(string account, string commandBody, RootController controller)
         {
-            if (controller.vm != null)  return false;
-            Map map = new Island68($"file:{nameof(Island68)}?mode=memory&cache=shared");
+            if (controller.vm != null)
+            {
+                controller.logCollector.Log(LogCollector.LogType.Map, "Another game running!");
+                return false;
+            }
+            Map map = new Island68($"file:{nameof(Island68)}-{controller.gamePlatform}-{controller.chatId}.db3?cache=shared");
             Lakhesh lakhesh = new Lakhesh(account);
             GetWater getWater = new GetWater(lakhesh);
             lakhesh.skills.Add(getWater);
@@ -27,6 +31,16 @@
 
             SukaLambdaEngine vm = new(controller, map: map);
             vm.AddCharacter(lakhesh, 0, 0, new Heading(HeadingDirection.E));
+            
+            controller.logCollector.Log(LogCollector.LogType.Map, @"アイランド68へようこそ！
+Take a tour with Lakhesh (菈) around in the forests and lawns of Island 68.
+/mv EEESS to move towards the east for 3 blocks, and then south for 2 blocks.
+Lakhesh has a mobility of 5 blocks in each round.
+It costs 3 mobility to move from forest (森林)
+     and 0 mobility to move from Warehouse (仓)
+Get a bucket of water with /water when Lakhesh is next to a water block (水)
+and return to Warehouse (仓) to win the game!");
+            controller.logCollector.Log(LogCollector.LogType.Map, map.RenderAsText(Language.cn));
             return true;
         }
 
@@ -49,7 +63,9 @@
                     {
                         hasWater = true;
                         executionSuccess = true;
-                        owner.statusCommitted.Mobility -= (long)Math.Abs(owner.statusCommitted.Mobility * 0.4);
+                        long mobilityReduction = (long)Math.Abs(owner.statusCommitted.Mobility * 0.4);
+                        owner.statusCommitted.Mobility -= mobilityReduction;
+                        owner.statusTemporary.Mobility -= mobilityReduction;
                         break;
                     }
                 return result;

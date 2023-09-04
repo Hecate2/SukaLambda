@@ -8,7 +8,7 @@ namespace SukaLambdaEngineTests
         [TestMethod]
         public void StartGame()
         {
-            RootController controller = new RootController(GamePlatform.Undefined);
+            RootController controller = new RootController("TestChat", GamePlatform.Undefined);
             controller.cmdRouter.ExecuteCommand(
                 "TestAccount",
                 "/i68".TrimStart().TrimStart('/'),
