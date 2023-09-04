@@ -89,7 +89,8 @@ and return to Warehouse (仓) to win the game!");
                     executionSuccess = false;
                     return "水を得る！";
                 }
-                return "";
+                else
+                    return "水汲みに失敗した。上下左右に水があることを確認してください";
             }
             public override string WriteLogForEffect(NumericEffect effect, SukaLambdaEngine vm) => "";
         }
