@@ -50,7 +50,7 @@ async Task HandleUpdateAsync(ITelegramBotClient botClient, Update update, Cancel
 
     long chatId = message.Chat.Id;
     DateTime timeSent = message.Date.ToLocalTime();
-    Console.WriteLine($"{timeSent}[{chatId}] {message.From}({message.From?.Id}): {messageText}");
+    Console.WriteLine($"{timeSent}[{chatId}] {message.From}: {messageText}");
 
     TimeSpan timeDelta = DateTime.Now - timeSent;
     Message sentMessage;

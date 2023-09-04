@@ -1,4 +1,5 @@
-﻿using System.Reflection;
+﻿using System;
+using System.Reflection;
 using System.Text.RegularExpressions;
 
 namespace sukalambda
@@ -69,6 +70,7 @@ namespace sukalambda
         {
             if (command.ToLower() == "start")
             {
+                controller.logCollector.Log(LogCollector.LogType.OutGame, "https://github.com/Hecate2/SukaLambda");
                 foreach (Type type in Assembly.GetExecutingAssembly().GetTypes())
                 {
                     foreach (MethodInfo method in type.GetMethods(BindingFlags.Public | BindingFlags.Static))
@@ -78,6 +80,7 @@ namespace sukalambda
                         controller.logCollector.Log(LogCollector.LogType.OutGame, $"/{attribute.name} {attribute.regex} {attribute.help}");
                     }
                 }
+                controller.logCollector.Log(LogCollector.LogType.OutGame, "The engine executes commands every 15 seconds!");
                 return;
             }
             string[] cmdSplitted = Regex.Split(command, @"\s+");
