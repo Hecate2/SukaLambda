@@ -119,27 +119,31 @@
 
     public class Warehouse : MapBlock
     {
-        public new Dictionary<Altitude, ushort> mobilityCost = new() { { Altitude.Surface, 0 } };
-        public Warehouse(ushort x, ushort y, SukaLambdaEngine? vm = null) : base(x, y, vm) { }
-        public new string RenderAsText(Language lang) => "仓";
+        public Warehouse(ushort x, ushort y, SukaLambdaEngine? vm = null) : base(x, y, vm)
+        {
+            mobilityCost = new() { { Altitude.Surface, 0 } };
+        }
+        public override string RenderAsText(Language lang) => "仓";
     }
 
     public class Forest : MapBlock
     {
-        public new Dictionary<Altitude, ushort> mobilityCost = new() { {Altitude.Surface, 3} };
-        public Forest(ushort x, ushort y, SukaLambdaEngine? vm = null) : base(x, y, vm) { }
-        public new string RenderAsText(Language lang) => "森林"[(x+y+((y*3<vm?.map?.height) ? 1 : 0)) % 2].ToString();
+        public Forest(ushort x, ushort y, SukaLambdaEngine? vm = null) : base(x, y, vm)
+        {
+            mobilityCost = new() { { Altitude.Surface, 3 } };
+        }
+        public override string RenderAsText(Language lang) => "森林"[(x+y+((y*3<vm?.map?.height) ? 1 : 0)) % 2].ToString();
     }
     public class Lawn : MapBlock
     {
         public Lawn(ushort x, ushort y, SukaLambdaEngine? vm = null) : base(x, y, vm) { }
-        public new string RenderAsText(Language lang) => "草";//"🌼🌻"[(x+1) % 2].ToString();
+        public override string RenderAsText(Language lang) => "草";//"🌼🌻"[(x+1) % 2].ToString();
     }
     public class Water : MapBlock
     {
-        public new bool AllowEntrancy(Character character,
+        public override bool AllowEntrancy(Character character,
             Heading?[] movements, ushort movementIndexEnteringThisBlock) => false;
         public Water(ushort x, ushort y, SukaLambdaEngine? vm = null) : base(x, y, vm) { }
-        public new string RenderAsText(Language lang) => "水";
+        public override string RenderAsText(Language lang) => "水";
     }
 }

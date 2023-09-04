@@ -64,9 +64,9 @@ namespace sukalambda
             this.vm = vm;
         }
 
-        public bool AllowEntrancy(Character character,
+        public virtual bool AllowEntrancy(Character character,
             Heading?[] movements, ushort movementIndexEnteringThisBlock) => true;
-        public bool AllowDeparture(Character character,
+        public virtual bool AllowDeparture(Character character,
             Heading?[] movements, ushort movementIndexEnteringThisBlock) => true;
 
         /// <summary>
@@ -76,7 +76,7 @@ namespace sukalambda
         /// <param name="movements"></param>
         /// <param name="movementIndexEnteringThisBlock">0 if the movement starts from this block</param>
         /// <param name="vm"></param>
-        public void OnCharacterMovingIn(Character character,
+        public virtual void OnCharacterMovingIn(Character character,
             Heading?[] movements, ushort movementIndexEnteringThisBlock)
         { }
         /// <summary>
@@ -86,14 +86,14 @@ namespace sukalambda
         /// <param name="movements"></param>
         /// <param name="movementIndexLeavingThisBlock">0 if the movement starts from this block</param>
         /// <param name="vm"></param>
-        public void OnCharacterMovingOut(Character character,
+        public virtual void OnCharacterMovingOut(Character character,
             Heading?[] movements, ushort movementIndexLeavingThisBlock)
         { }
-        public void OnCharacterMovingOutOfMapFromThisBlock(Character character,
+        public virtual void OnCharacterMovingOutOfMapFromThisBlock(Character character,
             Heading?[] movements, ushort movementIndexLeavingThisBlock)
         { }
 
-        public string RenderAsText(Language lang) => blockAsText;
+        public virtual string RenderAsText(Language lang) => blockAsText;
     }
 
     [Index(nameof(positionX))]
@@ -343,10 +343,7 @@ namespace sukalambda
                     // You can also change distances by yourself!
 
                     Tuple<ushort, ushort> currentPosition = new(x, y);
-                    dynamic? block = null;
-                    if (this.blocks.ContainsKey(currentPosition))
-                        block = blocks[currentPosition];
-                    if (block != null)
+                    if (this.blocks.TryGetValue(currentPosition, out MapBlock? block))
                     {
                         if (outOfMap)
                             block.OnCharacterMovingOutOfMapFromThisBlock(character, headings, i);
@@ -374,16 +371,16 @@ namespace sukalambda
                     if (vm == null) break;
                     character.OnMoveInMap(vm, currentPosition, plannedHeading, destination, headingResult);
                     if (character.removedFromMap || character.statusTemporary.Mobility <= 0) break;
-                    if (blocks.ContainsKey(destination))  // blockTo
+                    if (this.blocks.TryGetValue(destination, out block))  // blockTo
                     {
-                        block = blocks[destination];
                         if (block != null && !block.AllowEntrancy(character, headings, i))
                         {   // cancel movement
                             x -= movement.Item1;
                             y -= movement.Item2;
                             break;
                         }
-                        block.OnCharacterMovingIn(character, headings, i);
+                        if (block != null)
+                            block.OnCharacterMovingIn(character, headings, i);
                     }
                     if (character.removedFromMap || character.statusTemporary.Mobility <= 0) break;
                 }
@@ -409,8 +406,7 @@ namespace sukalambda
             foreach (var kvp in blocks)
             {
                 if (kvp.Key.Item1 >= width || kvp.Key.Item2 >= height) continue;
-                dynamic block = kvp.Value;  // kvp.Value.RenderAsText(lang) returns "⚪"
-                string text = block.RenderAsText(lang);
+                string text = kvp.Value.RenderAsText(lang);
                 if (text == "") continue;
                 if (text.Count(ch => ch == '\n') == 0)
                     text = string.Join("\n", Enumerable.Repeat(text, basicBlockOccupiesRows));

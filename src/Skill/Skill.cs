@@ -18,9 +18,9 @@ namespace sukalambda
         public Skill(Character owner) { this.owner = owner; }
 
         /// <returns>null if the target is valid; A description for reason if the target is invalid</returns>
-        public string? ReasonForInvalidTarget(Character fromCharacter, Character toCharacter, SukaLambdaEngine vm) => "";
-        public HashSet<Character> ValidTargets(Character fromCharacter, SukaLambdaEngine vm) => new HashSet<Character>();
-        public Character[] AutoSelectTargets(Character fromCharacter, SukaLambdaEngine vm) => new Character[0];
+        public virtual string? ReasonForInvalidTarget(Character fromCharacter, Character toCharacter, SukaLambdaEngine vm) => "";
+        public virtual HashSet<Character> ValidTargets(Character fromCharacter, SukaLambdaEngine vm) => new HashSet<Character>();
+        public virtual Character[] AutoSelectTargets(Character fromCharacter, SukaLambdaEngine vm) => new Character[0];
         
         /// <summary>
         /// For vm to plan a skill.
@@ -31,7 +31,7 @@ namespace sukalambda
         /// <param name="vm"></param>
         /// <param name="metaArgs"></param>
         /// <returns></returns>
-        public SkillExecution PlanUseSkill(Character fromCharacter, List<Character> plannedTargets, SukaLambdaEngine vm, object[]? metaArgs = null) => new(fromCharacter, this, plannedTargets.ToArray(), metaArgs);
+        public virtual SkillExecution PlanUseSkill(Character fromCharacter, List<Character> plannedTargets, SukaLambdaEngine vm, object[]? metaArgs = null) => new(fromCharacter, this, plannedTargets.ToArray(), metaArgs);
 
         /// <summary>
         /// Used by human to input commands.
@@ -56,11 +56,11 @@ namespace sukalambda
         /// <param name="metaArgs"></param>
         /// <returns>The planned numeric effects. The length can be shorter than <see cref="SkillExecution.desiredTargets"/></returns>
         public abstract List<NumericEffect> Execute(SkillExecution skillExecution, SukaLambdaEngine vm, object[]? metaArgs = null);
-        public abstract string WriteLogAtStart(SukaLambdaEngine vm);
-        public abstract string WriteLogForEffect(NumericEffect effect, SukaLambdaEngine vm);
-        public abstract string WriteLogAtEnd(SukaLambdaEngine vm);
+        public virtual string WriteLogAtStart(SukaLambdaEngine vm) => "";
+        public virtual string WriteLogForEffect(NumericEffect effect, SukaLambdaEngine vm) => "";
+        public virtual string WriteLogAtEnd(SukaLambdaEngine vm) => "";
         /// <returns>Just the skill name in different languages</returns>
-        public string RenderAsText(Language lang) => "A fantastic skill!";
+        public virtual string RenderAsText(Language lang) => $"A fantastic skill {this.GetType().Name}!";
     }
 
     /// <summary>
